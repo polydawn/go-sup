@@ -4,12 +4,6 @@ import (
 	"sync"
 )
 
-func NewLatch() *Latch {
-	return &Latch{
-		bellcords: make([]chan<- struct{}, 0, 1),
-	}
-}
-
 /*
 	Sign up for a signal, which can be flipped exactly once.
 
@@ -22,29 +16,64 @@ func NewLatch() *Latch {
 	requirements -- for example modelling state machine transitions
 	where we want to act only when "reached ready state (and maybe further)".
 */
-type Latch struct {
-	sync.Mutex
-	bellcords []chan<- struct{}
+type Latch interface {
+	// Fire the signal.  If this is called more than once, it will panic (much like closing a closed channel).
+	Trigger()
+
+	// Submit a channel to be signalled as soon as the latch is flipped.
+	Wait(bellcord chan<- interface{})
+
+	// Like `Trigger`, but simply no-ops if triggering has already happened.  Use sparingly.
+	MaybeTrigger()
 }
 
-func (s *Latch) Trigger() {
-	s.Lock()
-	defer s.Unlock()
-	if s.bellcords == nil {
-		panic("cannot repeatedly drop signal")
+func New() Latch {
+	return &latch{
+		bellcords: make([]chan<- interface{}, 0, 1),
 	}
-	for _, bellcord := range s.bellcords {
-		bellcord <- struct{}{}
-	}
-	s.bellcords = nil
 }
 
-func (s *Latch) Wait(bellcord chan<- struct{}) {
-	s.Lock()
-	defer s.Unlock()
-	if s.bellcords == nil {
-		bellcord <- struct{}{}
+func NewWithMessage(msg interface{}) Latch {
+	return &latch{
+		msg:       msg,
+		bellcords: make([]chan<- interface{}, 0, 1),
+	}
+}
+
+type latch struct {
+	mu        sync.Mutex
+	msg       interface{}
+	bellcords []chan<- interface{}
+}
+
+func (l *latch) Trigger() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.bellcords == nil {
+		panic("cannot repeatedly trigger latch")
+	}
+	l.trigger()
+}
+
+func (l *latch) MaybeTrigger() {
+	l.mu.Lock()
+	l.trigger()
+	l.mu.Unlock()
+}
+
+func (l *latch) trigger() {
+	for _, bellcord := range l.bellcords {
+		bellcord <- l.msg
+	}
+	l.bellcords = nil
+}
+
+func (l *latch) Wait(bellcord chan<- interface{}) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.bellcords == nil {
+		bellcord <- l.msg
 		return
 	}
-	s.bellcords = append(s.bellcords, bellcord)
+	l.bellcords = append(l.bellcords, bellcord)
 }

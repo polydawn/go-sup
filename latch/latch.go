@@ -17,11 +17,14 @@ import (
 	where we want to act only when "reached ready state (and maybe further)".
 */
 type Latch interface {
-	// Fire the signal.  If this is called more than once, it will panic (much like closing a closed channel).
-	Trigger()
+	// Block until the latch is flipped.
+	Wait()
 
 	// Submit a channel to be signalled as soon as the latch is flipped.
-	Wait(bellcord chan<- interface{})
+	WaitSelectably(bellcord chan<- interface{})
+
+	// Fire the signal.  If this is called more than once, it will panic (much like closing a closed channel).
+	Trigger()
 
 	// Like `Trigger`, but simply no-ops if triggering has already happened.  Use sparingly.
 	MaybeTrigger()
@@ -68,7 +71,7 @@ func (l *latch) trigger() {
 	l.bellcords = nil
 }
 
-func (l *latch) Wait(bellcord chan<- interface{}) {
+func (l *latch) WaitSelectably(bellcord chan<- interface{}) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.bellcords == nil {
@@ -76,4 +79,10 @@ func (l *latch) Wait(bellcord chan<- interface{}) {
 		return
 	}
 	l.bellcords = append(l.bellcords, bellcord)
+}
+
+func (l *latch) Wait() {
+	bellcord := make(chan interface{})
+	l.WaitSelectably(bellcord)
+	<-bellcord
 }

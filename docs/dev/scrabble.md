@@ -25,6 +25,7 @@
 - By and large: this is the right direction, absolutely.  But it's not everything.
 - Bugs me: The factory methods are kind of helterskelter, and I shouldn't have to implement those for new context types.
   - This is perhaps nitpicky, but I'd really prefer the API strongly guides you towards deadlines (a relative timeout function should be *more* typing, because it's almost always less correct).
+  - Wouldn't it make more sense if you constructed new ones and handed them a ref uptree, since that's what *all the rest* of your regular funcs act like.
 - The "Value" bag thing is something I'd really rather remained a separate concept.
 - Overall, this is a system for doing cancellations, and that's fine, but it doesn't have much to say about collecting errors on the way up again, and that is a thing I'm interested in regularizing.
   - There's sense to this: x/net/context is a parameter you pass down, and that's it, and you still use control flow for returns... and by doing so, you never get stuck in the generics desire.

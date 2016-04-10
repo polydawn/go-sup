@@ -46,3 +46,27 @@ func ExampleWowCancel() {
 	// whee, i'm an actor!
 	// cancelled!
 }
+
+func ExampleMisbehaved() {
+	// testing the misbehavior warnings is hard.
+	// i'm not sure how to avoid the nature that it's a thing with a wallclock in it.
+}
+
+func ExampleTree() {
+	svr := sup.NewRootSupervisor()
+	svr.Spawn(func(chap sup.Chaperon) {
+		svr2 := sup.NewReportingSupervisor(chap)
+		svr2.Spawn(func(chap sup.Chaperon) {
+			svr3 := sup.NewReportingSupervisor(chap)
+			svr3.Spawn(func(chap sup.Chaperon) {
+				chap.Done("t3\n")
+			})
+			// YOU SHOULD NOT NEED THIS: svr3.Wait()
+		})
+		// YOU SHOULD NOT NEED THIS: svr2.Wait()
+	})
+	svr.Wait()
+
+	// skip // Output:
+	// t3
+}

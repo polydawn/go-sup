@@ -75,7 +75,11 @@ func (l *latch) WaitSelectably(bellcord chan<- interface{}) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	if l.bellcords == nil {
-		bellcord <- l.msg
+		// even if we're doing immediate ack, we must do so in a goroutine
+		//  in case the caller handed us an unbuffered channel which they expect
+		//   to wait on moments after this submission.  Triggers don't come from
+		//    the listener-submitting routine; neither should after-trigger acks.
+		go func() { bellcord <- l.msg }()
 		return
 	}
 	l.bellcords = append(l.bellcords, bellcord)

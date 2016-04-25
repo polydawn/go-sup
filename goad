@@ -1,31 +1,39 @@
 #!/bin/bash
 set -euo pipefail
 
-# Project details
+### Project details
 name="go-sup"
 pkg="polydawn.net/$name"
 cmd="$pkg"
 
 
 
+### Normalize path -- all work should be relative to this script's location.
+## Set up gopath -- also relative to this dir, so we work in isolation.
+cd "$( dirname "${BASH_SOURCE[0]}" )"
+export GOPATH="$PWD/.gopath/"
+export GOBIN="$PWD/bin/"
+
+
+
 ### other config scripts?  invoke here.
+## pass pointer to project root dir down, for tests (tests run in varying CWDs, so need this hint)
+export PROJ="$PWD"
+## use LDFLAGS to inject vars at compile time.
 LDFLAGS=""
 
 
 
-# Set up gopath -- relative to this dir, so we work in isolation.
-cd "$( dirname "${BASH_SOURCE[0]}" )"
-export GOPATH="$PWD"/.gopath/
-
+### Last bits of our flag parsery.
 # subcommand arg?
 SUBCOMMAND=${1:-}
-
 # subsection arg?
 SUBSECTION=${2:-"..."}
 SUBSECTION="./$SUBSECTION"
+# default test timeouts are far too high.  override this if you like.
+TEST_TIMEOUT="${TEST_TIMEOUT:-"35s"}"
 
-
-
+### action begins!
 if [ -z "$SUBCOMMAND" ] ; then
 	(
 		go fmt "$SUBSECTION"
@@ -35,7 +43,7 @@ if [ -z "$SUBCOMMAND" ] ; then
 			echo -e "\E[1;41minstall failed!\E[0;m"
 			exit 8
 		}
-		go test "$SUBSECTION" && {
+		go test "$SUBSECTION" -timeout="$TEST_TIMEOUT" && {
 			echo -e "\n\E[1;32mall tests green.\E[0;m"
 		} || {
 			echo -e "\n\E[1;41msome tests failed!\E[0;m"
@@ -67,7 +75,7 @@ else
 	test)
 		set +e ; shift ; set -e # munch $subsection from passing on in "$@"
 		go test -i "$SUBSECTION" "$@" &&
-		go test -v "$SUBSECTION" "$@" && {
+		go test -v "$SUBSECTION" -timeout="$TEST_TIMEOUT" "$@" && {
 			echo -e "\n\E[1;32mall tests green.\E[0;m"
 		} || {
 			echo -e "\n\E[1;41msome tests failed!\E[0;m"
@@ -97,9 +105,10 @@ else
 		go fmt "$SUBSECTION"
 		;;
 	doc)
+		set +e ; shift ; set -e # munch $subsection from passing on in "$@"
 		for package in $(go list "$SUBSECTION" | sed "s#^_${PWD}#${pkg}#"); do
 			echo -e "==== $package ====\n"
-			godoc "$package"
+			godoc "$@" "$package"
 			echo -e "\n\n\n"
 		done
 		;;

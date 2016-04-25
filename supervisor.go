@@ -1,9 +1,5 @@
 package sup
 
-import (
-	"polydawn.net/go-sup/latch"
-)
-
 /*
 	A `SupervisonFn` is the control code you write to dictate supervisor's behavior.
 	This function can spawn tasks, wait around, take orders, spawn more tasks,
@@ -39,12 +35,7 @@ import (
 type SupervisonFn func(*Supervisor)
 
 func NewSupervisor(superFn SupervisonFn) {
-	svr := &Supervisor{
-		reqSpawnChan:  make(chan msg_spawn),
-		childBellcord: make(chan interface{}),
-		wards:         make(map[Witness]Chaperon),
-		doneLatch:     latch.New(),
-	}
+	svr := newSupervisor()
 	go svr.actor()
 	// TODO more panic-collecting fences around this
 	superFn(svr)
@@ -54,7 +45,7 @@ func NewSupervisor(superFn SupervisonFn) {
 
 func (svr *Supervisor) Spawn(fn Task) Witness {
 	retCh := make(chan Witness)
-	svr.reqSpawnChan <- msg_spawn{fn: fn, ret: retCh}
+	svr.ctrlChan_spawn <- msg_spawn{fn: fn, ret: retCh}
 	return <-retCh
 }
 

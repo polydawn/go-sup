@@ -48,7 +48,3 @@ func (svr *Supervisor) Spawn(fn Task) Witness {
 	svr.ctrlChan_spawn <- msg_spawn{fn: fn, ret: retCh}
 	return <-retCh
 }
-
-func (svr *Supervisor) Wait() {
-	// TODO svr.doneLatch.Wait()
-}

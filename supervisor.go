@@ -34,13 +34,21 @@ package sup
 */
 type SupervisonFn func(*Supervisor)
 
+/*
+	Start a new supervisor.  Put the given function in charge of it.
+	When the controller function returns, the supervisor will start
+	winding down (it won't accept any new tasks to be launched), and
+	when all outstanding tasks have completed, the supervisor will become
+	done.
+
+	This method blocks for the duration -- it will return when the
+	supervisor has become done.
+*/
 func NewSupervisor(superFn SupervisonFn) {
 	svr := newSupervisor()
 	go svr.actor()
-	// TODO more panic-collecting fences around this
-	superFn(svr)
-	// TODO block for children
-	return
+	svr.run(superFn)
+	svr.latch_done.Wait()
 }
 
 func (svr *Supervisor) Spawn(fn Task) Witness {

@@ -54,19 +54,36 @@ func ExampleMisbehaved() {
 
 func ExampleTree() {
 	sup.NewSupervisor(func(svr *sup.Supervisor) {
+		fmt.Println("sup  > a")
 		svr.Spawn(func(chap sup.Chaperon) {
+			fmt.Println("task > a.1")
 			sup.NewSupervisor(func(svr *sup.Supervisor) {
+				fmt.Println("sup  > a.1.a")
 				svr.Spawn(func(chap sup.Chaperon) {
+					fmt.Println("task > a.1.a.1")
 					sup.NewSupervisor(func(svr *sup.Supervisor) {
+						fmt.Println("sup  > a.1.a.1.a")
 						svr.Spawn(func(chap sup.Chaperon) {
+							fmt.Println("task > a.1.a.1.a.1")
 							chap.Done("t3\n")
 						})
 					})
+					fmt.Println("sup  < a.1.a.1.a")
 				})
 			})
+			fmt.Println("sup  < a.1.a")
 		})
 	})
+	fmt.Println("sup  < a")
 
-	// skip // Output:
-	// t3
+	// Output:
+	// sup  > a
+	// task > a.1
+	// sup  > a.1.a
+	// task > a.1.a.1
+	// sup  > a.1.a.1.a
+	// task > a.1.a.1.a.1
+	// sup  < a.1.a.1.a
+	// sup  < a.1.a
+	// sup  < a
 }

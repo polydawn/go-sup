@@ -6,7 +6,7 @@ import (
 
 type Supervisor struct {
 	ctrlChan_spawn    chan msg_spawn   // pass spawn instructions to maintactor
-	ctrlChan_winddown chan struct{}    // closes when controller strategy returns
+	ctrlChan_winddown chan struct{}    // signalled when controller strategy returns
 	childBellcord     chan interface{} // gather child completion events
 
 	wards map[Witness]Chaperon
@@ -17,8 +17,9 @@ type Supervisor struct {
 
 func newSupervisor() *Supervisor {
 	return &Supervisor{
-		ctrlChan_spawn: make(chan msg_spawn),
-		childBellcord:  make(chan interface{}),
+		ctrlChan_spawn:    make(chan msg_spawn),
+		ctrlChan_winddown: make(chan struct{}),
+		childBellcord:     make(chan interface{}),
 
 		wards: make(map[Witness]Chaperon),
 
@@ -41,6 +42,8 @@ const (
 
 	It will be swaddled in all sorts of error handling, etc; and when
 	it returns, we'll put the supervisor into winding down mode.
+	This method itself will then return after all of that (but
+	the rest of the supervisor and its children may still be running).
 */
 func (svr *Supervisor) run(superFn SupervisonFn) {
 	defer func() {
@@ -48,6 +51,8 @@ func (svr *Supervisor) run(superFn SupervisonFn) {
 		if err != nil {
 			// TODO uffdah
 		}
+		// it's over.  wind'r all down.
+		svr.ctrlChan_winddown <- struct{}{}
 	}()
 
 	superFn(svr)
@@ -88,6 +93,10 @@ func (svr *Supervisor) actor() {
 		case <-svr.ctrlChan_winddown:
 			state = supervisorState_windingDown
 			svr.latch_windingDown.Trigger()
+			if len(svr.wards) == 0 {
+				state = supervisorState_done
+				svr.latch_done.Trigger()
+			}
 		}
 	}
 }

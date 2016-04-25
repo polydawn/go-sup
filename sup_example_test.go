@@ -8,18 +8,18 @@ import (
 )
 
 func ExampleWow() {
-	svr := sup.NewRootSupervisor()
-	wit := svr.Spawn(func(chap sup.Chaperon) {
-		fmt.Printf("whee, i'm an actor!\n")
-		select {
-		case <-chap.SelectableQuit():
-		case <-time.After(200 * time.Millisecond):
-			fmt.Printf("a lazy one!\n")
-		}
-		chap.Done("result!\n")
+	sup.NewSupervisor(func(svr *sup.Supervisor) {
+		wit := svr.Spawn(func(chap sup.Chaperon) {
+			fmt.Printf("whee, i'm an actor!\n")
+			select {
+			case <-chap.SelectableQuit():
+			case <-time.After(200 * time.Millisecond):
+				fmt.Printf("a lazy one!\n")
+			}
+			chap.Done("result!\n")
+		})
+		wit.Wait()
 	})
-	wit.Wait()
-	svr.Wait()
 
 	// Output:
 	// whee, i'm an actor!
@@ -27,20 +27,20 @@ func ExampleWow() {
 }
 
 func ExampleWowCancel() {
-	svr := sup.NewRootSupervisor()
-	wit := svr.Spawn(func(chap sup.Chaperon) {
-		fmt.Printf("whee, i'm an actor!\n")
-		select {
-		case <-chap.SelectableQuit():
-			fmt.Printf("cancelled!\n")
-			chap.Done("cancelled!\n")
-		case <-time.After(2 * time.Second):
-		}
-		chap.Done("result!\n")
+	sup.NewSupervisor(func(svr *sup.Supervisor) {
+		wit := svr.Spawn(func(chap sup.Chaperon) {
+			fmt.Printf("whee, i'm an actor!\n")
+			select {
+			case <-chap.SelectableQuit():
+				fmt.Printf("cancelled!\n")
+				chap.Done("cancelled!\n")
+			case <-time.After(2 * time.Second):
+			}
+			chap.Done("result!\n")
+		})
+		wit.Cancel()
+		wit.Wait()
 	})
-	wit.Cancel()
-	wit.Wait()
-	svr.Wait()
 
 	// Output:
 	// whee, i'm an actor!
@@ -53,19 +53,19 @@ func ExampleMisbehaved() {
 }
 
 func ExampleTree() {
-	svr := sup.NewRootSupervisor()
-	svr.Spawn(func(chap sup.Chaperon) {
-		svr2 := sup.NewReportingSupervisor(chap)
-		svr2.Spawn(func(chap sup.Chaperon) {
-			svr3 := sup.NewReportingSupervisor(chap)
-			svr3.Spawn(func(chap sup.Chaperon) {
-				chap.Done("t3\n")
+	sup.NewSupervisor(func(svr *sup.Supervisor) {
+		svr.Spawn(func(chap sup.Chaperon) {
+			sup.NewSupervisor(func(svr *sup.Supervisor) {
+				svr.Spawn(func(chap sup.Chaperon) {
+					sup.NewSupervisor(func(svr *sup.Supervisor) {
+						svr.Spawn(func(chap sup.Chaperon) {
+							chap.Done("t3\n")
+						})
+					})
+				})
 			})
-			// YOU SHOULD NOT NEED THIS: svr3.Wait()
 		})
-		// YOU SHOULD NOT NEED THIS: svr2.Wait()
 	})
-	svr.Wait()
 
 	// skip // Output:
 	// t3

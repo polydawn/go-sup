@@ -4,17 +4,41 @@ import (
 	"polydawn.net/go-sup/latch"
 )
 
-type Supervisor struct {
-	reqSpawnChan  chan msg_spawn
-	childBellcord chan interface{}
+/*
+	A `SupervisonFn` is the control code you write to dictate supervisor's behavior.
+	This function can spawn tasks, wait around, take orders, spawn more tasks,
+	collect task results, etc -- and as long as this function continues, the
+	supervisor itself is operational.
 
-	noAdmittance bool
-	wards        map[Witness]Chaperon
+	If the `SupervisonFn` panics, the supervisor is in a
+	bad state, and all of its children will be killed, and the problem
+	reported upwards.
+	When the `SupervisonFn` returns, that's the indication that this supervision
+	tree will not be assigned any more tasks to babysit, and things will wrap
+	up gracefully and the supervisor itself will exit when all children
+	have been collected.
 
-	doneLatch latch.Latch
-}
+	A valid `SupervisonFn` might just spawn one task and return.
+	In this case, the supervisor will wait for that child's return, then
+	itself return.
 
-func NewRootSupervisor() *Supervisor {
+	Another valid `SupervisonFn` might spawn a dozen tasks, then select on
+	a channel which it responds to by spawning even more tasks.
+	In this case, even if all its tasks are done, the supervisor will never
+	return until the `SupervisonFn` also returns.  (So, in this scenario,
+	you'd probably want to write a "close" channel of sime kind into the
+	body of your `SupervisonFn`, so you can tell it when it's time to
+	shut down.)
+
+	You should only operate the provided `Supervisor` from within that
+	`SupervisonFn` -- there aren't enough mutexes to make that safe, and
+	you probably wouldn't like the semantic races and error handling anyway.
+	Treat it like another actor: that's what it is.
+	(Witnesses are safe to use and pass round anywhere, though.)
+*/
+type SupervisonFn func(*Supervisor)
+
+func NewSupervisor(superFn SupervisonFn) {
 	svr := &Supervisor{
 		reqSpawnChan:  make(chan msg_spawn),
 		childBellcord: make(chan interface{}),
@@ -22,11 +46,10 @@ func NewRootSupervisor() *Supervisor {
 		doneLatch:     latch.New(),
 	}
 	go svr.actor()
-	return svr
-}
-
-func NewReportingSupervisor(upsub Chaperon) *Supervisor {
-	return &Supervisor{} // TODO
+	// TODO more panic-collecting fences around this
+	superFn(svr)
+	// TODO block for children
+	return
 }
 
 func (svr *Supervisor) Spawn(fn Task) Witness {
@@ -37,35 +60,4 @@ func (svr *Supervisor) Spawn(fn Task) Witness {
 
 func (svr *Supervisor) Wait() {
 	// TODO svr.doneLatch.Wait()
-}
-
-type supervisorState byte
-
-const (
-	supervisorState_uninitialized supervisorState = iota
-	supervisorState_started                       // properly initialized, ready to spawn tasks
-	supervisorState_awaited                       // has been `Await`'d,
-)
-
-type msg_spawn struct {
-	fn  Task
-	ret chan<- Witness
-}
-
-func (svr *Supervisor) actor() {
-	for {
-		select {
-		case reqSpawn := <-svr.reqSpawnChan:
-			ctrlr := newController()
-			svr.wards[ctrlr] = ctrlr
-			ctrlr.doneLatch.WaitSelectably(svr.childBellcord)
-			go func() {
-				defer ctrlr.doneLatch.Trigger()
-				reqSpawn.fn(ctrlr)
-			}()
-			reqSpawn.ret <- ctrlr
-		case childDone := <-svr.childBellcord:
-			delete(svr.wards, childDone.(*controller))
-		}
-	}
 }

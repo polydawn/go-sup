@@ -12,7 +12,12 @@ type Witness interface {
 
 type Chaperon interface {
 	SelectableQuit() <-chan struct{} // closed when you should die
-	Done(result interface{})         // push up your result.  failure to return shortly after calling this will result in warnings.
+
+	// Note the *absense* of a `Done(result interface{})` method.
+	// Anything you need to return: do so by writing your actor function to be
+	//  closure over a (typed!) var which you set.
+	// Your work becomes "done" when it returns.  No functions have to be called
+	//  to mark the transition; the scope of your stack is just the whole truth.
 }
 
 var (
@@ -25,8 +30,6 @@ type controller struct {
 	quitCh chan struct{}
 
 	doneLatch latch.Latch
-
-	result interface{} // fenced by doneLatch
 }
 
 func newController() *controller {
@@ -50,9 +53,4 @@ func (ctrlr *controller) Cancel() {
 
 func (ctrlr *controller) SelectableQuit() <-chan struct{} {
 	return ctrlr.quitCh
-}
-
-func (ctrlr *controller) Done(result interface{}) {
-	ctrlr.result = result
-	// does NOT trigger the 'done' latch.  actual control return does so.
 }

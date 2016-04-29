@@ -16,7 +16,6 @@ func ExampleWow() {
 			case <-time.After(200 * time.Millisecond):
 				fmt.Printf("a lazy one!\n")
 			}
-			chap.Done("result!\n")
 		})
 		wit.Wait()
 	})
@@ -33,10 +32,8 @@ func ExampleWowCancel() {
 			select {
 			case <-chap.SelectableQuit():
 				fmt.Printf("cancelled!\n")
-				chap.Done("cancelled!\n")
 			case <-time.After(2 * time.Second):
 			}
-			chap.Done("result!\n")
 		})
 		wit.Cancel()
 		wit.Wait()
@@ -65,7 +62,6 @@ func ExampleTree() {
 						fmt.Println("sup  > a.1.a.1.a")
 						svr.Spawn(func(chap sup.Chaperon) {
 							fmt.Println("task > a.1.a.1.a.1")
-							chap.Done("t3\n")
 						})
 					})
 					fmt.Println("sup  < a.1.a.1.a")

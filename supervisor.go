@@ -46,7 +46,7 @@ type SupervisonFn func(*Supervisor)
 */
 func NewSupervisor(superFn SupervisonFn) {
 	svr := newSupervisor()
-	go svr.actor()
+	go svr.supmgr_actor()
 	svr.run(superFn)
 	svr.latch_done.Wait()
 }

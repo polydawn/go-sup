@@ -1,7 +1,7 @@
 package sup
 
 import (
-	"polydawn.net/go-sup/latch"
+	"go.polydawn.net/go-sup/latch"
 )
 
 type Witness interface {

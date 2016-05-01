@@ -3,7 +3,7 @@ set -euo pipefail
 
 ### Project details
 name="go-sup"
-pkg="polydawn.net/$name"
+pkg="go.polydawn.net/$name"
 cmd="$pkg"
 
 

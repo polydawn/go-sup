@@ -22,14 +22,15 @@ func Main(stderr io.Writer) {
 		//  even though I've nipped off.)
 		fmt.Fprintf(stderr, "Owner: hello\n")
 
-		// There are three major operations going on under my domain:
+		// There are four major operations going on under my domain:
 		//   - The mining pits -- these produce a steady stream of "slag"
 		//   - The ore washing plants -- these do some basic processing, and route out several different kinds of "ore"
 		//   - The foundries -- there's several different kinds of these, they take only specific kinds of "ore"
+		//   - The shipping wharf -- this station packages up all the ingots into crates for sale
 		// Keep an eye on the ore washing plants.  Sometimes they get jammed,
 		//  and we have to take one out of service, scrap it for parts, and
 		//  just install a whole new one without any of the wear-n-tear.
-		// There's also a fourth operation: the oversight office.
+		// There's also a fivth operation: the oversight office.
 		//  The oversight office can sometimes get letters from other parts
 		//  of Her Majesty's Goverment, to which the office is required to
 		//  respond in a timely fashion.  Sometimes this requires the
@@ -41,6 +42,20 @@ func Main(stderr io.Writer) {
 		fmt.Fprintf(stderr, "Owner: leaving for cayman\n")
 	})
 }
+
+type (
+	Slag string
+
+	OreCopper string
+	OreTin    string
+	OreZinc   string
+
+	IngotCopper string
+	IngotTin    string
+	IngotZinc   string
+
+	Crate struct{ ingots []string }
+)
 
 type MinePits struct {
 }

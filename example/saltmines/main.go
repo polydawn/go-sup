@@ -1,6 +1,8 @@
 package saltmines
 
 import (
+	"bufio"
+	"bytes"
 	"fmt"
 	"io"
 
@@ -38,6 +40,13 @@ func Main(stderr io.Writer) {
 		//  teams tend to be short-lived, but they may ask questions about
 		//  (or sometimes give odd orders to) the other three major operational
 		//  centers of our production pipeline.
+		slagPipe := make(chan Slag)
+		minePit := &MinePits{
+			thePit:   bytes.NewBufferString("copper, copper"),
+			slagPipe: slagPipe,
+		}
+		minePitWitness := svr.Spawn(minePit.Run)
+		minePitWitness.Cancel() // this always works atm because it's blocked sending the first word
 
 		fmt.Fprintf(stderr, "Owner: leaving for cayman\n")
 	})
@@ -58,10 +67,28 @@ type (
 )
 
 type MinePits struct {
+	thePit   io.Reader
+	slagPipe chan<- Slag
 }
 
-func (mp *MinePits) Run() {
-
+func (mp *MinePits) Run(chap sup.Chaperon) {
+	scanner := bufio.NewScanner(mp.thePit)
+	scanner.Split(bufio.ScanWords)
+	for {
+		// intentionally evil example.  we need interruptable readers to
+		//  be able to shut down truly gracefully.
+		select {
+		default:
+			scanner.Scan()
+			// careful.  you have to put nb/cancellable selects for each send, too.
+			select {
+			case mp.slagPipe <- Slag(scanner.Text()):
+			case <-chap.SelectableQuit():
+			}
+		case <-chap.SelectableQuit():
+			return
+		}
+	}
 }
 
 type OreWashingFacility struct {

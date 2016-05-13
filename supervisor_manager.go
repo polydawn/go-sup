@@ -48,6 +48,9 @@ func (svr *Supervisor) supmgr_stepAccepting() supmgr_step {
 
 	case <-svr.ctrlChan_winddown:
 		return svr.supmgr_stepWinddown
+
+	case <-svr.ctrlChan_quit:
+		return svr.supmgr_stepQuitting
 	}
 	panic("go-sup bug: missing transition")
 }
@@ -65,8 +68,17 @@ func (svr *Supervisor) supmgr_stepWinddown() supmgr_step {
 		return svr.supmgr_stepWinddown
 	case <-svr.ctrlChan_winddown:
 		panic("go-sup bug, winddown transition cannot occur twice")
+	case <-svr.ctrlChan_quit:
+		panic("go-sup bug, cannot transition winddown->quitting")
 	}
 	panic("go-sup bug: missing transition")
+}
+
+func (svr *Supervisor) supmgr_stepQuitting() supmgr_step {
+	for wit, _ := range svr.wards {
+		wit.Cancel()
+	}
+	return svr.supmgr_stepWinddown
 }
 
 func (svr *Supervisor) supmgr_stepTerminated() supmgr_step {

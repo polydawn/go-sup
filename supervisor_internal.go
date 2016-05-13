@@ -6,7 +6,8 @@ import (
 
 type Supervisor struct {
 	ctrlChan_spawn    chan msg_spawn   // pass spawn instructions to maintactor
-	ctrlChan_winddown chan struct{}    // signalled when controller strategy returns
+	ctrlChan_winddown chan beep        // signalled when controller strategy returns
+	ctrlChan_quit     chan beep        // signalled to trigger quits, and then move directly to winddown
 	childBellcord     chan interface{} // gather child completion events
 
 	wards map[Witness]Chaperon
@@ -17,7 +18,8 @@ type Supervisor struct {
 func newSupervisor() *Supervisor {
 	return &Supervisor{
 		ctrlChan_spawn:    make(chan msg_spawn),
-		ctrlChan_winddown: make(chan struct{}),
+		ctrlChan_winddown: make(chan beep),
+		ctrlChan_quit:     make(chan beep),
 		childBellcord:     make(chan interface{}),
 
 		wards: make(map[Witness]Chaperon),
@@ -37,21 +39,23 @@ func newSupervisor() *Supervisor {
 func (svr *Supervisor) run(superFn SupervisonFn) {
 	defer func() {
 		err := recover()
-		if err != nil {
-			// TODO uffdah
-			// So this needs to implode aggressively -- pushing the maint actor into a new (higher priority) state, which then starts firing cancels down.
-			// It also needs somewhere to boil out itself.  And we kinda left that behind, somehow.  :(
-
-			// ... Is there something we should do to boil out errors for children that are clearly not being witnessed by the controller that spawned them?
-			// ..... Probably?
-			// ........ Does that mean we should actually make that *normal*, and you have to intercept explicitly if you want to handle it better?
-			//    You can't really do that very well.  It's hard to force the controller to panic.  (This is the interruption-impossibility limit, in fact.)
-			//     But we could still certainly push errors *up* by default, so the next level higher supervisory code can react promptly (and then
-			//      if your process that didn't handle it wants to be the badly behaved non-cancel-compliant one when that parent shuts down, that's
-			//      fine/inevitable, and it'll be correctly reported as such (well, if we can build watchdogs that good, anyway, which is still in the "hope" phase).
+		// no error is the easy route: it's over.  wind'r down.
+		if err == nil {
+			svr.ctrlChan_winddown <- beep{}
+			return
 		}
-		// it's over.  wind'r all down.
-		svr.ctrlChan_winddown <- struct{}{}
+		// if there was an error, every child should be cancelled automatically,
+		//  because apparently their adult supervison has declared incompetence.
+		svr.ctrlChan_quit <- beep{}
+		// TODO It also needs somewhere to boil out itself.  And we kinda left that behind, somehow.  :(
+
+		// ... Is there something we should do to boil out errors for children that are clearly not being witnessed by the controller that spawned them?
+		// ..... Probably?
+		// ........ Does that mean we should actually make that *normal*, and you have to intercept explicitly if you want to handle it better?
+		//    You can't really do that very well.  It's hard to force the controller to panic.  (This is the interruption-impossibility limit, in fact.)
+		//     But we could still certainly push errors *up* by default, so the next level higher supervisory code can react promptly (and then
+		//      if your process that didn't handle it wants to be the badly behaved non-cancel-compliant one when that parent shuts down, that's
+		//      fine/inevitable, and it'll be correctly reported as such (well, if we can build watchdogs that good, anyway, which is still in the "hope" phase).
 	}()
 
 	superFn(svr)

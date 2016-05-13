@@ -37,13 +37,13 @@ TEST_TIMEOUT="${TEST_TIMEOUT:-"35s"}"
 if [ -z "$SUBCOMMAND" ] ; then
 	(
 		go fmt "$SUBSECTION"
-		go install -ldflags "$LDFLAGS" "$cmd" && {
+		go install -race -ldflags "$LDFLAGS" "$cmd" && {
 			echo -e "\E[1;32minstall successful.\E[0;m\n"
 		} || {
 			echo -e "\E[1;41minstall failed!\E[0;m"
 			exit 8
 		}
-		go test "$SUBSECTION" -timeout="$TEST_TIMEOUT" && {
+		go test "$SUBSECTION" -race -timeout="$TEST_TIMEOUT" && {
 			echo -e "\n\E[1;32mall tests green.\E[0;m"
 		} || {
 			echo -e "\n\E[1;41msome tests failed!\E[0;m"
@@ -74,8 +74,8 @@ else
 		;;
 	test)
 		set +e ; shift ; set -e # munch $subsection from passing on in "$@"
-		go test -i "$SUBSECTION" "$@" &&
-		go test -v "$SUBSECTION" -timeout="$TEST_TIMEOUT" "$@" && {
+		go test -i "$SUBSECTION" -race "$@" &&
+		go test -v "$SUBSECTION" -race -timeout="$TEST_TIMEOUT" "$@" && {
 			echo -e "\n\E[1;32mall tests green.\E[0;m"
 		} || {
 			echo -e "\n\E[1;41msome tests failed!\E[0;m"
@@ -83,6 +83,9 @@ else
 		}
 		;;
 	install)
+		go install -race -ldflags "$LDFLAGS" "$cmd"
+		;;
+	final)
 		go install -ldflags "$LDFLAGS" "$cmd"
 		;;
 	bench)

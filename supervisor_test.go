@@ -1,6 +1,10 @@
 package sup
 
-import "testing"
+import (
+	"testing"
+
+	. "github.com/smartystreets/goconvey/convey"
+)
 
 type blackbox chan string
 
@@ -17,20 +21,24 @@ func (bb blackbox) drain() (lst []string) {
 }
 
 func TestSupervisorCrashcancels(t *testing.T) {
-	blackbox := newBlackbox()
-	NewSupervisor(func(svr *Supervisor) {
-		blackbox <- "supervisor control started"
-		svr.Spawn(func(chap Chaperon) {
-			blackbox <- "child proc started"
-			<-chap.SelectableQuit()
-			blackbox <- "child proc recieved quit"
+	Convey("supervisors that crash should have children cancelled", t, func() {
+		blackbox := newBlackbox()
+		NewSupervisor(func(svr *Supervisor) {
+			blackbox <- "supervisor control started"
+			svr.Spawn(func(chap Chaperon) {
+				blackbox <- "child proc started"
+				<-chap.SelectableQuit()
+				blackbox <- "child proc recieved quit"
+			})
+			blackbox <- "supervisor control about to panic"
+			panic("whoa")
 		})
-		blackbox <- "supervisor control about to panic"
-		panic("whoa")
+		results := blackbox.drain()
+		So(results, ShouldResemble, []string{
+			"supervisor control started",
+			"supervisor control about to panic",
+			"child proc started",
+			"child proc recieved quit",
+		})
 	})
-	results := blackbox.drain()
-	t.Log(results[0])
-	t.Log(results[1])
-	t.Log(results[2])
-	t.Log(results[3])
 }

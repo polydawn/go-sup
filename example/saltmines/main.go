@@ -2,14 +2,13 @@ package saltmines
 
 import (
 	"bufio"
-	"bytes"
 	"fmt"
 	"io"
 
 	"go.polydawn.net/go-sup"
 )
 
-func Main(stderr io.Writer) {
+func Main(stdin io.Reader, stderr io.Writer) {
 	sup.NewSupervisor(func(svr *sup.Supervisor) {
 		// I'm a very lazy controller, and I mostly delegate work to others.
 		// I don't actually even wake up if something goes wrong!
@@ -42,11 +41,20 @@ func Main(stderr io.Writer) {
 		//  centers of our production pipeline.
 		slagPipe := make(chan Slag)
 		minePit := &MinePits{
-			thePit:   bytes.NewBufferString("copper, copper"),
+			thePit:   stdin,
 			slagPipe: slagPipe,
 		}
 		minePitWitness := svr.Spawn(minePit.Run)
-		minePitWitness.Cancel() // this always works atm because it's blocked sending the first word
+		minePitWitness.Cancel()
+
+		oreWasher := &OreWashingFacility{
+			slagPipe:     slagPipe,
+			copperHopper: make(chan OreCopper),
+			tinHopper:    make(chan OreTin),
+			zincHopper:   make(chan OreZinc),
+		}
+		oreWasherWitness := svr.Spawn(oreWasher.Run)
+		oreWasherWitness.Cancel()
 
 		fmt.Fprintf(stderr, "Owner: leaving for cayman\n")
 	})
@@ -92,6 +100,62 @@ func (mp *MinePits) Run(chap sup.Chaperon) {
 }
 
 type OreWashingFacility struct {
+	slagPipe     <-chan Slag
+	copperHopper chan<- OreCopper
+	tinHopper    chan<- OreTin
+	zincHopper   chan<- OreZinc
+}
+
+func (owf *OreWashingFacility) Run(chap sup.Chaperon) {
+	// Ore washing is a slow process, and sometimes a batch takes quite
+	//  some time; this can strike fairly randomly, so we run a bunch
+	//  of processing separately to even things out.
+	// That means *we're* a supervisor for all those parallel processors.
+	sup.NewSupervisor(func(svr *sup.Supervisor) {
+		// FIXME : lost in the gap here: quits don't propagate down.
+		// (neither do a lot of things make it back up.)
+		// kek of keks: `NewSupervisor` is blocking.  which means you can't interrupt it.  this... is clearly a problem.
+		var children []sup.Witness
+		for n := 0; n < 4; n++ {
+			wit := svr.Spawn(func(chap sup.Chaperon) {
+				for {
+					select {
+					case slag := <-owf.slagPipe:
+						// this looks a little squishy, but keep in mind
+						//  the level of contrivance here.  it's quite unlikely
+						//   that one would ever write a real typed fanout so trivial as this.
+						switch slag {
+						case "copper":
+							select {
+							case owf.copperHopper <- OreCopper(slag):
+							case <-chap.SelectableQuit():
+							}
+						case "tin":
+							select {
+							case owf.tinHopper <- OreTin(slag):
+							case <-chap.SelectableQuit():
+							}
+						case "zinc":
+							select {
+							case owf.zincHopper <- OreZinc(slag):
+							case <-chap.SelectableQuit():
+							}
+						default:
+							panic("unknown ore type, cannot sort")
+						}
+					case <-chap.SelectableQuit():
+						return
+					}
+				}
+			})
+			children = append(children, wit)
+		}
+		// FIXME : manual quit propagation.  go-sup should do this for you.
+		<-chap.SelectableQuit()
+		for _, wit := range children {
+			wit.Cancel()
+		}
+	})
 }
 
 type FoundryCoordinator struct {

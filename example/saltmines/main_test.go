@@ -1,6 +1,7 @@
 package saltmines
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 )
@@ -23,7 +24,8 @@ import (
 
 func ExampleSaltmines() {
 	defer fmt.Printf("Example: complete!")
-	Main(os.Stdout)
+	input := bytes.NewBufferString("copper copper")
+	Main(input, os.Stdout)
 
 	// Output:
 	// Owner: hello

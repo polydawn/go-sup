@@ -47,24 +47,21 @@ func (svr *Supervisor) supmgr_stepAccepting() supmgr_step {
 		return svr.supmgr_stepAccepting
 
 	case <-svr.ctrlChan_winddown:
-		if len(svr.wards) == 0 {
-			return svr.supmgr_stepTerminated
-		}
 		return svr.supmgr_stepWinddown
 	}
 	panic("go-sup bug: missing transition")
 }
 
 func (svr *Supervisor) supmgr_stepWinddown() supmgr_step {
+	if len(svr.wards) == 0 {
+		return svr.supmgr_stepTerminated
+	}
 	select {
 	case _ = <-svr.ctrlChan_spawn:
 		panic("supervisor already winding down") // TODO return a witness with an insta error instead?
 		return svr.supmgr_stepWinddown
 	case childDone := <-svr.childBellcord:
 		delete(svr.wards, childDone.(*controller))
-		if len(svr.wards) == 0 {
-			return svr.supmgr_stepTerminated
-		}
 		return svr.supmgr_stepWinddown
 	case <-svr.ctrlChan_winddown:
 		panic("go-sup bug, winddown transition cannot occur twice")

@@ -1,0 +1,165 @@
+package saltmines
+
+import (
+	"bufio"
+	"fmt"
+	"io"
+
+	"go.polydawn.net/go-sup"
+)
+
+func Main(stdin io.Reader, stderr io.Writer) {
+	sup.NewSupervisor(func(svr *sup.Supervisor) {
+		// I'm a very lazy controller, and I mostly delegate work to others.
+		// I don't actually even wake up if something goes wrong!
+		// I assume things are going according to plan unless something
+		//  really terrible gets so far that it sets my office on fire around me.
+		// Even then: honestly, I'm already in the Cayman Islands.  There's
+		//  nobody in the head office anymore.  Really, all the other workers
+		//  need is the idea that there's someone they *could* complain to.
+		// If somebody actually *does* file a report, the mail will make
+		//  it to the corporate franchise office, somehow.  (Maybe the dutiful
+		//  secretary I left behind will actually do the maint work for me,
+		//  even though I've nipped off.)
+		fmt.Fprintf(stderr, "Owner: hello\n")
+
+		// There are four major operations going on under my domain:
+		//   - The mining pits -- these produce a steady stream of "slag"
+		//   - The ore washing plants -- these do some basic processing, and route out several different kinds of "ore"
+		//   - The foundries -- there's several different kinds of these, they take only specific kinds of "ore"
+		//   - The shipping wharf -- this station packages up all the ingots into crates for sale
+		// Keep an eye on the ore washing plants.  Sometimes they get jammed,
+		//  and we have to take one out of service, scrap it for parts, and
+		//  just install a whole new one without any of the wear-n-tear.
+		// There's also a fivth operation: the oversight office.
+		//  The oversight office can sometimes get letters from other parts
+		//  of Her Majesty's Goverment, to which the office is required to
+		//  respond in a timely fashion.  Sometimes this requires the
+		//  oversight office to commission a team to gather a report.  Such
+		//  teams tend to be short-lived, but they may ask questions about
+		//  (or sometimes give odd orders to) the other three major operational
+		//  centers of our production pipeline.
+		slagPipe := make(chan Slag)
+		minePit := &MinePits{
+			thePit:   stdin,
+			slagPipe: slagPipe,
+		}
+		minePitWitness := svr.Spawn(minePit.Run)
+		minePitWitness.Cancel()
+
+		oreWasher := &OreWashingFacility{
+			slagPipe:     slagPipe,
+			copperHopper: make(chan OreCopper),
+			tinHopper:    make(chan OreTin),
+			zincHopper:   make(chan OreZinc),
+		}
+		oreWasherWitness := svr.Spawn(oreWasher.Run)
+		oreWasherWitness.Cancel()
+
+		fmt.Fprintf(stderr, "Owner: leaving for cayman\n")
+	})
+}
+
+type (
+	Slag string
+
+	OreCopper string
+	OreTin    string
+	OreZinc   string
+
+	IngotCopper string
+	IngotTin    string
+	IngotZinc   string
+
+	Crate struct{ ingots []string }
+)
+
+type MinePits struct {
+	thePit   io.Reader
+	slagPipe chan<- Slag
+}
+
+func (mp *MinePits) Run(chap sup.Chaperon) {
+	scanner := bufio.NewScanner(mp.thePit)
+	scanner.Split(bufio.ScanWords)
+	for {
+		// intentionally evil example.  we need interruptable readers to
+		//  be able to shut down truly gracefully.
+		select {
+		default:
+			scanner.Scan()
+			// careful.  you have to put nb/cancellable selects for each send, too.
+			select {
+			case mp.slagPipe <- Slag(scanner.Text()):
+			case <-chap.SelectableQuit():
+			}
+		case <-chap.SelectableQuit():
+			return
+		}
+	}
+}
+
+type OreWashingFacility struct {
+	slagPipe     <-chan Slag
+	copperHopper chan<- OreCopper
+	tinHopper    chan<- OreTin
+	zincHopper   chan<- OreZinc
+}
+
+func (owf *OreWashingFacility) Run(chap sup.Chaperon) {
+	// Ore washing is a slow process, and sometimes a batch takes quite
+	//  some time; this can strike fairly randomly, so we run a bunch
+	//  of processing separately to even things out.
+	// That means *we're* a supervisor for all those parallel processors.
+	sup.NewSupervisor(func(svr *sup.Supervisor) {
+		// FIXME : lost in the gap here: quits don't propagate down.
+		// (neither do a lot of things make it back up.)
+		// kek of keks: `NewSupervisor` is blocking.  which means you can't interrupt it.  this... is clearly a problem.
+		var children []sup.Witness
+		for n := 0; n < 4; n++ {
+			wit := svr.Spawn(func(chap sup.Chaperon) {
+				for {
+					select {
+					case slag := <-owf.slagPipe:
+						// this looks a little squishy, but keep in mind
+						//  the level of contrivance here.  it's quite unlikely
+						//   that one would ever write a real typed fanout so trivial as this.
+						switch slag {
+						case "copper":
+							select {
+							case owf.copperHopper <- OreCopper(slag):
+							case <-chap.SelectableQuit():
+							}
+						case "tin":
+							select {
+							case owf.tinHopper <- OreTin(slag):
+							case <-chap.SelectableQuit():
+							}
+						case "zinc":
+							select {
+							case owf.zincHopper <- OreZinc(slag):
+							case <-chap.SelectableQuit():
+							}
+						default:
+							panic("unknown ore type, cannot sort")
+						}
+					case <-chap.SelectableQuit():
+						return
+					}
+				}
+			})
+			children = append(children, wit)
+		}
+		// FIXME : manual quit propagation.  go-sup should do this for you.
+		<-chap.SelectableQuit()
+		for _, wit := range children {
+			wit.Cancel()
+		}
+	})
+}
+
+type FoundryCoordinator struct {
+}
+
+type OversightOffice struct {
+}

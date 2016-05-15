@@ -1,10 +1,17 @@
 package sup
 
 import (
+	"runtime"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
+
+	"go.polydawn.net/go-sup/phist"
 )
+
+func init() {
+	runtime.GOMAXPROCS(4)
+}
 
 type blackbox chan string
 
@@ -34,11 +41,8 @@ func TestSupervisorCrashcancels(t *testing.T) {
 			panic("whoa")
 		})
 		results := blackbox.drain()
-		So(results, ShouldResemble, []string{
-			"supervisor control started",
-			"supervisor control about to panic",
-			"child proc started",
-			"child proc recieved quit",
-		})
+		So(results, ShouldHaveLength, 4)
+		So(results, phist.ShouldSequence, "child proc started", "child proc recieved quit")
+		So(results, phist.ShouldSequence, "supervisor control about to panic", "child proc recieved quit")
 	})
 }

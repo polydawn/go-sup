@@ -42,8 +42,21 @@ func (svr *Supervisor) supmgr_stepAccepting() supmgr_step {
 		reqSpawn.ret <- ctrlr
 		return svr.supmgr_stepAccepting
 
+	case reqFork := <-svr.ctrlChan_fork:
+		fork := newSupervisor()
+		svr.subsups[fork] = fork
+		fork.WaitSelectably(svr.subsupBellcord)
+		go fork.supmgr_actor()
+		go fork.run(reqFork.fn)
+		reqFork.ret <- fork
+		return svr.supmgr_stepAccepting
+
 	case childDone := <-svr.childBellcord:
 		delete(svr.wards, childDone.(*controller))
+		return svr.supmgr_stepAccepting
+
+	case subDone := <-svr.subsupBellcord:
+		delete(svr.subsups, subDone.(*Supervisor))
 		return svr.supmgr_stepAccepting
 
 	case <-svr.ctrlChan_winddown:
@@ -65,15 +78,22 @@ func (svr *Supervisor) supmgr_stepWinddown() supmgr_step {
 	case childDone := <-svr.childBellcord:
 		delete(svr.wards, childDone.(*controller))
 		return svr.supmgr_stepWinddown
+	case subDone := <-svr.subsupBellcord:
+		delete(svr.subsups, subDone.(*Supervisor))
+		return svr.supmgr_stepWinddown
 	case <-svr.ctrlChan_winddown:
 		panic("go-sup bug, winddown transition cannot occur twice")
 	case <-svr.ctrlChan_quit:
-		panic("go-sup bug, cannot transition winddown->quitting")
+		panic("go-sup bug, cannot transition winddown->quitting") // TODO you most certainly can -- this may necessitate another state
+		// also prttty sure we need a sync.Once around the quit chans
 	}
 }
 
 func (svr *Supervisor) supmgr_stepQuitting() supmgr_step {
 	for wit, _ := range svr.wards {
+		wit.Cancel()
+	}
+	for wit, _ := range svr.subsups {
 		wit.Cancel()
 	}
 	return svr.supmgr_stepWinddown

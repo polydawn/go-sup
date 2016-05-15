@@ -56,3 +56,21 @@ func (svr *Supervisor) Spawn(fn Task) Witness {
 	svr.ctrlChan_spawn <- msg_spawn{fn: fn, ret: retCh}
 	return <-retCh
 }
+
+func (svr *Supervisor) Fork(superFn SupervisonFn) Witness {
+	retCh := make(chan Witness)
+	svr.ctrlChan_fork <- msg_fork{fn: superFn, ret: retCh}
+	return <-retCh
+}
+
+func (svr *Supervisor) WaitSelectably(bellcord chan<- interface{}) {
+	svr.latch_done.WaitSelectably(bellcord)
+}
+
+func (svr *Supervisor) Wait() {
+	svr.latch_done.Wait()
+}
+
+func (svr *Supervisor) Cancel() {
+	svr.ctrlChan_quit <- beep{} // TODO this should probably tolerate multiple cancels
+}

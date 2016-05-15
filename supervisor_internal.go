@@ -6,11 +6,14 @@ import (
 
 type Supervisor struct {
 	ctrlChan_spawn    chan msg_spawn   // pass spawn instructions to maintactor
+	ctrlChan_fork     chan msg_fork    // pass fork instructions -- differs from spawn (this is node, that's leaf)
 	ctrlChan_winddown chan beep        // signalled when controller strategy returns
 	ctrlChan_quit     chan beep        // signalled to trigger quits, and then move directly to winddown
+	subsupBellcord    chan interface{} // gather child completion events
 	childBellcord     chan interface{} // gather child completion events
 
-	wards map[Witness]Chaperon
+	subsups map[Witness]*Supervisor
+	wards   map[Witness]Chaperon
 
 	latch_done latch.Latch // used to communicate that the public New method can return
 }
@@ -18,11 +21,14 @@ type Supervisor struct {
 func newSupervisor() *Supervisor {
 	return &Supervisor{
 		ctrlChan_spawn:    make(chan msg_spawn),
+		ctrlChan_fork:     make(chan msg_fork),
 		ctrlChan_winddown: make(chan beep),
 		ctrlChan_quit:     make(chan beep),
+		subsupBellcord:    make(chan interface{}),
 		childBellcord:     make(chan interface{}),
 
-		wards: make(map[Witness]Chaperon),
+		subsups: make(map[Witness]*Supervisor),
+		wards:   make(map[Witness]Chaperon),
 
 		latch_done: latch.New(),
 	}
@@ -63,5 +69,10 @@ func (svr *Supervisor) run(superFn SupervisonFn) {
 
 type msg_spawn struct {
 	fn  Task
+	ret chan<- Witness
+}
+
+type msg_fork struct {
+	fn  SupervisonFn
 	ret chan<- Witness
 }

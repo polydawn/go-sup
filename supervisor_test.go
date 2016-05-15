@@ -2,6 +2,7 @@ package sup
 
 import (
 	"runtime"
+	"strings"
 	"testing"
 
 	. "github.com/smartystreets/goconvey/convey"
@@ -27,8 +28,12 @@ func (bb blackbox) drain() (lst []string) {
 	return
 }
 
+func logResults(results []string) {
+	Print("\nseq >>> " + strings.Join(results, "\n      > ") + "\n      ----\n")
+}
+
 func TestSupervisorCrashcancels(t *testing.T) {
-	Convey("supervisors that crash should have children cancelled", t, func() {
+	Convey("supervisors that crash should have children cancelled", t, FailureContinues, func() {
 		blackbox := newBlackbox()
 		NewSupervisor(func(svr *Supervisor) {
 			blackbox <- "supervisor control started"
@@ -41,6 +46,7 @@ func TestSupervisorCrashcancels(t *testing.T) {
 			panic("whoa")
 		})
 		results := blackbox.drain()
+		logResults(results)
 		So(results, ShouldHaveLength, 4)
 		So(results, phist.ShouldSequence, "child proc started", "child proc recieved quit")
 		So(results, phist.ShouldSequence, "supervisor control about to panic", "child proc recieved quit")

@@ -58,5 +58,15 @@ func Test(t *testing.T) {
 				`Sequence broken: at end, "a" occured 2 times, and "b" which is supposed to follow it only occured 1`,
 			)
 		})
+		Convey("Lack of relevant elements fails to match", func() {
+			So(
+				ShouldSequence(
+					[]string{"a", "c", "a", "b", "e"},
+					"f", "g",
+				),
+				ShouldEqual,
+				`Sequence broken: none of the keywords ever encountered`,
+			)
+		})
 	})
 }

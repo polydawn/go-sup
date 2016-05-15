@@ -94,6 +94,10 @@ func ShouldSequence(actual interface{}, expected ...interface{}) string {
 			)
 		}
 	}
+	// also, just not existing is not a valid match
+	if counts[0] == 0 {
+		return "Sequence broken: none of the keywords ever encountered"
+	}
 
 	return ""
 }

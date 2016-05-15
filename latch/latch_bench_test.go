@@ -6,15 +6,19 @@ import (
 )
 
 /*
+	Note: running with `-benchtime 200ms` (or even 100) may be a perfectly
+	valid time-saving choice; more does not appear to significantly
+	improve the consistency of results.
+
 	RESULTS
 
-		BenchmarkLatchAllocation                 5000000               267 ns/op
-		BenchmarkBaseline_JsonUnmarshalling      1000000              2226 ns/op
-		BenchmarkLatchTrigger_0Listeners        10000000               187 ns/op
-		BenchmarkLatchTrigger_1Listeners         5000000               257 ns/op
-		BenchmarkLatchTrigger_2Listeners         5000000               320 ns/op
-		BenchmarkLatchTrigger_4Listeners         3000000               462 ns/op
-		BenchmarkLatchTrigger_8Listeners         2000000               728 ns/op
+		BenchmarkLatchAllocation                  500000               265 ns/op
+		BenchmarkBaseline_JsonUnmarshalling       100000              2225 ns/op
+		BenchmarkLatchTrigger_0Listeners         1000000               188 ns/op
+		BenchmarkLatchTrigger_1Listeners          500000               258 ns/op
+		BenchmarkLatchTrigger_2Listeners          500000               320 ns/op
+		BenchmarkLatchTrigger_4Listeners          300000               459 ns/op
+		BenchmarkLatchTrigger_8Listeners          200000               733 ns/op
 
 	Cautions:
 

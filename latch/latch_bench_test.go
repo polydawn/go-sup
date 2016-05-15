@@ -8,13 +8,13 @@ import (
 /*
 	RESULTS
 
-		BenchmarkLatchAllocation                 5000000               362 ns/op
-		BenchmarkBaseline_JsonUnmarshalling       100000             15494 ns/op
-		BenchmarkLatchTrigger_0Listeners          500000              2741 ns/op
-		BenchmarkLatchTrigger_1Listeners          200000              9810 ns/op
-		BenchmarkLatchTrigger_2Listeners          100000             16107 ns/op
-		BenchmarkLatchTrigger_4Listeners           50000             24316 ns/op
-		BenchmarkLatchTrigger_8Listeners           30000             48357 ns/op
+		BenchmarkLatchAllocation                 5000000               344 ns/op
+		BenchmarkBaseline_JsonUnmarshalling       100000             14420 ns/op
+		BenchmarkLatchTrigger_0Listeners        10000000               188 ns/op
+		BenchmarkLatchTrigger_1Listeners         5000000               255 ns/op
+		BenchmarkLatchTrigger_2Listeners         5000000               316 ns/op
+		BenchmarkLatchTrigger_4Listeners         3000000               462 ns/op
+		BenchmarkLatchTrigger_8Listeners         2000000               729 ns/op
 
 	Cautions:
 
@@ -85,14 +85,26 @@ func BenchmarkLatchTrigger_1Listeners(b *testing.B) { DoBenchmkLatchTrigger_NLis
 func BenchmarkLatchTrigger_2Listeners(b *testing.B) { DoBenchmkLatchTrigger_NListeners(b, 2) }
 func BenchmarkLatchTrigger_4Listeners(b *testing.B) { DoBenchmkLatchTrigger_NListeners(b, 4) }
 func BenchmarkLatchTrigger_8Listeners(b *testing.B) { DoBenchmkLatchTrigger_NListeners(b, 8) }
+
+/*
+	Target: the cost of *triggering*.
+
+	Not:
+		- allocating the latch
+		- allocating the gather chans
+		- signing up the gather chans
+*/
 func DoBenchmkLatchTrigger_NListeners(b *testing.B, n int) {
-	var x Latch
+	latchPool := make([]Latch, b.N)
 	for i := 0; i < b.N; i++ {
-		x = New()
+		x := New()
 		for j := 0; j < n; j++ {
 			x.WaitSelectably(make(chan interface{}, 1))
 		}
-		x.Trigger()
+		latchPool[i] = x
 	}
-	_ = x
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		latchPool[i].Trigger()
+	}
 }

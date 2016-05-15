@@ -8,13 +8,13 @@ import (
 /*
 	RESULTS
 
-		BenchmarkLatchAllocation                 5000000               270 ns/op
+		BenchmarkLatchAllocation                 5000000               267 ns/op
 		BenchmarkBaseline_JsonUnmarshalling      1000000              2226 ns/op
 		BenchmarkLatchTrigger_0Listeners        10000000               187 ns/op
-		BenchmarkLatchTrigger_1Listeners         5000000               252 ns/op
-		BenchmarkLatchTrigger_2Listeners         5000000               313 ns/op
-		BenchmarkLatchTrigger_4Listeners         3000000               459 ns/op
-		BenchmarkLatchTrigger_8Listeners         2000000               724 ns/op
+		BenchmarkLatchTrigger_1Listeners         5000000               257 ns/op
+		BenchmarkLatchTrigger_2Listeners         5000000               320 ns/op
+		BenchmarkLatchTrigger_4Listeners         3000000               462 ns/op
+		BenchmarkLatchTrigger_8Listeners         2000000               728 ns/op
 
 	Cautions:
 
@@ -84,17 +84,13 @@ func BenchmarkLatchAllocation(b *testing.B) {
 
 // Totally unrelated.  Just to put things in context.
 func BenchmarkBaseline_JsonUnmarshalling(b *testing.B) {
-	for i := 0; i < b.N; i++ {
-		var x interface{}
-		json.Unmarshal([]byte(`{"jsonmsg":{"baseline":42}}`), x)
-	}
+	subbatch(b, func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			var x interface{}
+			json.Unmarshal([]byte(`{"jsonmsg":{"baseline":42}}`), x)
+		}
+	})
 }
-
-func BenchmarkLatchTrigger_0Listeners(b *testing.B) { DoBenchmkLatchTrigger_NListeners(b, 0) }
-func BenchmarkLatchTrigger_1Listeners(b *testing.B) { DoBenchmkLatchTrigger_NListeners(b, 1) }
-func BenchmarkLatchTrigger_2Listeners(b *testing.B) { DoBenchmkLatchTrigger_NListeners(b, 2) }
-func BenchmarkLatchTrigger_4Listeners(b *testing.B) { DoBenchmkLatchTrigger_NListeners(b, 4) }
-func BenchmarkLatchTrigger_8Listeners(b *testing.B) { DoBenchmkLatchTrigger_NListeners(b, 8) }
 
 /*
 	Target: the cost of *triggering*.
@@ -105,16 +101,24 @@ func BenchmarkLatchTrigger_8Listeners(b *testing.B) { DoBenchmkLatchTrigger_NLis
 		- signing up the gather chans
 */
 func DoBenchmkLatchTrigger_NListeners(b *testing.B, n int) {
-	latchPool := make([]Latch, b.N)
-	for i := 0; i < b.N; i++ {
-		x := New()
-		for j := 0; j < n; j++ {
-			x.WaitSelectably(make(chan interface{}, 1))
+	subbatch(b, func(b *testing.B) {
+		b.StopTimer()
+		latchPool := make([]Latch, b.N)
+		for i := 0; i < b.N; i++ {
+			x := New()
+			for j := 0; j < n; j++ {
+				x.WaitSelectably(make(chan interface{}, 1))
+			}
+			latchPool[i] = x
 		}
-		latchPool[i] = x
-	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		latchPool[i].Trigger()
-	}
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			latchPool[i].Trigger()
+		}
+	})
 }
+func BenchmarkLatchTrigger_0Listeners(b *testing.B) { DoBenchmkLatchTrigger_NListeners(b, 0) }
+func BenchmarkLatchTrigger_1Listeners(b *testing.B) { DoBenchmkLatchTrigger_NListeners(b, 1) }
+func BenchmarkLatchTrigger_2Listeners(b *testing.B) { DoBenchmkLatchTrigger_NListeners(b, 2) }
+func BenchmarkLatchTrigger_4Listeners(b *testing.B) { DoBenchmkLatchTrigger_NListeners(b, 4) }
+func BenchmarkLatchTrigger_8Listeners(b *testing.B) { DoBenchmkLatchTrigger_NListeners(b, 8) }

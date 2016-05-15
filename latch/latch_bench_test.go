@@ -2,8 +2,13 @@ package latch
 
 import (
 	"encoding/json"
+	"runtime"
 	"testing"
 )
+
+func init() {
+	runtime.GOMAXPROCS(4)
+}
 
 /*
 	Note: running with `-benchtime 200ms` (or even 100) may be a perfectly
@@ -12,22 +17,22 @@ import (
 
 	RESULTS
 
-		BenchmarkLatchAllocation                 1000000               274 ns/op              56 B/op          2 allocs/op
-		BenchmarkBaseline_JsonUnmarshalling       200000              2219 ns/op             312 B/op          5 allocs/op
-		BenchmarkLatchTriggerOnly_0Gatherers     2000000               188 ns/op               0 B/op          0 allocs/op
-		BenchmarkLatchTriggerOnly_1Gatherers     1000000               256 ns/op               0 B/op          0 allocs/op
-		BenchmarkLatchTriggerOnly_2Gatherers     1000000               318 ns/op               0 B/op          0 allocs/op
-		BenchmarkLatchTriggerOnly_4Gatherers     1000000               456 ns/op               0 B/op          0 allocs/op
-		BenchmarkLatchTriggerOnly_8Gatherers      500000               717 ns/op               0 B/op          0 allocs/op
-		BenchmarkLatchSubscribe_1Gatherers        300000               728 ns/op             128 B/op          4 allocs/op
-		BenchmarkLatchSubscribe_2Gatherers        200000              1484 ns/op             272 B/op          9 allocs/op
-		BenchmarkLatchSubscribe_4Gatherers        100000              3455 ns/op             560 B/op         18 allocs/op
-		BenchmarkLatchSubscribe_8Gatherers         50000              6789 ns/op            1136 B/op         35 allocs/op
-		BenchmarkLatchFullCycle_0Gatherers       2000000               193 ns/op               0 B/op          0 allocs/op
-		BenchmarkLatchFullCycle_1Gatherers        300000               907 ns/op             128 B/op          4 allocs/op
-		BenchmarkLatchFullCycle_2Gatherers        200000              1741 ns/op             272 B/op          9 allocs/op
-		BenchmarkLatchFullCycle_4Gatherers        100000              3452 ns/op             560 B/op         18 allocs/op
-		BenchmarkLatchFullCycle_8Gatherers         30000              7235 ns/op            1136 B/op         35 allocs/op
+		BenchmarkLatchAllocation-4               1000000               254 ns/op              56 B/op          2 allocs/op
+		BenchmarkBaseline_JsonUnmarshalling-4     100000              3188 ns/op             312 B/op          5 allocs/op
+		BenchmarkLatchTriggerOnly_0Gatherers-4   2000000               193 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_1Gatherers-4   1000000               256 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_2Gatherers-4   1000000               318 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_4Gatherers-4   1000000               465 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_8Gatherers-4    500000               733 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchSubscribe_1Gatherers-4      500000               591 ns/op             128 B/op          4 allocs/op
+		BenchmarkLatchSubscribe_2Gatherers-4      200000              1315 ns/op             272 B/op          9 allocs/op
+		BenchmarkLatchSubscribe_4Gatherers-4      100000              2641 ns/op             560 B/op         18 allocs/op
+		BenchmarkLatchSubscribe_8Gatherers-4       50000              5216 ns/op            1136 B/op         35 allocs/op
+		BenchmarkLatchFullCycle_0Gatherers-4     2000000               193 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchFullCycle_1Gatherers-4      300000               871 ns/op             128 B/op          4 allocs/op
+		BenchmarkLatchFullCycle_2Gatherers-4      200000              1724 ns/op             272 B/op          9 allocs/op
+		BenchmarkLatchFullCycle_4Gatherers-4      100000              3052 ns/op             560 B/op         18 allocs/op
+		BenchmarkLatchFullCycle_8Gatherers-4       50000              6273 ns/op            1136 B/op         35 allocs/op
 
 	Cautions:
 

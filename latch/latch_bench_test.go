@@ -12,13 +12,22 @@ import (
 
 	RESULTS
 
-		BenchmarkLatchAllocation                  500000               265 ns/op
-		BenchmarkBaseline_JsonUnmarshalling       100000              2225 ns/op
-		BenchmarkLatchTrigger_0Listeners         1000000               188 ns/op
-		BenchmarkLatchTrigger_1Listeners          500000               258 ns/op
-		BenchmarkLatchTrigger_2Listeners          500000               320 ns/op
-		BenchmarkLatchTrigger_4Listeners          300000               459 ns/op
-		BenchmarkLatchTrigger_8Listeners          200000               733 ns/op
+		BenchmarkLatchAllocation                 1000000               274 ns/op              56 B/op          2 allocs/op
+		BenchmarkBaseline_JsonUnmarshalling       200000              2219 ns/op             312 B/op          5 allocs/op
+		BenchmarkLatchTriggerOnly_0Gatherers     2000000               188 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_1Gatherers     1000000               256 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_2Gatherers     1000000               318 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_4Gatherers     1000000               456 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_8Gatherers      500000               717 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchSubscribe_1Gatherers        300000               728 ns/op             128 B/op          4 allocs/op
+		BenchmarkLatchSubscribe_2Gatherers        200000              1484 ns/op             272 B/op          9 allocs/op
+		BenchmarkLatchSubscribe_4Gatherers        100000              3455 ns/op             560 B/op         18 allocs/op
+		BenchmarkLatchSubscribe_8Gatherers         50000              6789 ns/op            1136 B/op         35 allocs/op
+		BenchmarkLatchFullCycle_0Gatherers       2000000               193 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchFullCycle_1Gatherers        300000               907 ns/op             128 B/op          4 allocs/op
+		BenchmarkLatchFullCycle_2Gatherers        200000              1741 ns/op             272 B/op          9 allocs/op
+		BenchmarkLatchFullCycle_4Gatherers        100000              3452 ns/op             560 B/op         18 allocs/op
+		BenchmarkLatchFullCycle_8Gatherers         30000              7235 ns/op            1136 B/op         35 allocs/op
 
 	Cautions:
 
@@ -103,8 +112,9 @@ func BenchmarkBaseline_JsonUnmarshalling(b *testing.B) {
 		- allocating the latch
 		- allocating the gather chans
 		- signing up the gather chans
+		- receiving the event (it goes into the chan buffer)
 */
-func DoBenchmkLatchTrigger_NListeners(b *testing.B, n int) {
+func DoBenchmkLatchTriggerOnly_NGatherers(b *testing.B, n int) {
 	subbatch(b, func(b *testing.B) {
 		b.StopTimer()
 		latchPool := make([]Latch, b.N)
@@ -121,8 +131,75 @@ func DoBenchmkLatchTrigger_NListeners(b *testing.B, n int) {
 		}
 	})
 }
-func BenchmarkLatchTrigger_0Listeners(b *testing.B) { DoBenchmkLatchTrigger_NListeners(b, 0) }
-func BenchmarkLatchTrigger_1Listeners(b *testing.B) { DoBenchmkLatchTrigger_NListeners(b, 1) }
-func BenchmarkLatchTrigger_2Listeners(b *testing.B) { DoBenchmkLatchTrigger_NListeners(b, 2) }
-func BenchmarkLatchTrigger_4Listeners(b *testing.B) { DoBenchmkLatchTrigger_NListeners(b, 4) }
-func BenchmarkLatchTrigger_8Listeners(b *testing.B) { DoBenchmkLatchTrigger_NListeners(b, 8) }
+func BenchmarkLatchTriggerOnly_0Gatherers(b *testing.B) { DoBenchmkLatchTriggerOnly_NGatherers(b, 0) }
+func BenchmarkLatchTriggerOnly_1Gatherers(b *testing.B) { DoBenchmkLatchTriggerOnly_NGatherers(b, 1) }
+func BenchmarkLatchTriggerOnly_2Gatherers(b *testing.B) { DoBenchmkLatchTriggerOnly_NGatherers(b, 2) }
+func BenchmarkLatchTriggerOnly_4Gatherers(b *testing.B) { DoBenchmkLatchTriggerOnly_NGatherers(b, 4) }
+func BenchmarkLatchTriggerOnly_8Gatherers(b *testing.B) { DoBenchmkLatchTriggerOnly_NGatherers(b, 8) }
+
+/*
+	Target: the cost of allocating a new chan and subscribing it.
+
+	Not:
+		- allocating the latch
+		- triggering the latch
+		- receiving the event (it goes into the chan buffer)
+
+	Note: you don't wanna do this one with zero gatherers, because it's
+	basically testing a noop but doing so in a way that hammers pause button
+	and thus wastes a ton of wall clock time on memory stats that don't matter.
+*/
+func DoBenchmkLatchSubscribe_NGatherers(b *testing.B, n int) {
+	subbatch(b, func(b *testing.B) {
+		b.StopTimer()
+		latchPool := make([]Latch, b.N)
+		for i := 0; i < b.N; i++ {
+			latchPool[i] = New()
+		}
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			x := latchPool[i]
+			for j := 0; j < n; j++ {
+				x.WaitSelectably(make(chan interface{}, 1))
+			}
+		}
+		b.StopTimer()
+		for i := 0; i < b.N; i++ {
+			latchPool[i].Trigger()
+		}
+		b.StartTimer()
+	})
+}
+func BenchmarkLatchSubscribe_1Gatherers(b *testing.B) { DoBenchmkLatchSubscribe_NGatherers(b, 1) }
+func BenchmarkLatchSubscribe_2Gatherers(b *testing.B) { DoBenchmkLatchSubscribe_NGatherers(b, 2) }
+func BenchmarkLatchSubscribe_4Gatherers(b *testing.B) { DoBenchmkLatchSubscribe_NGatherers(b, 4) }
+func BenchmarkLatchSubscribe_8Gatherers(b *testing.B) { DoBenchmkLatchSubscribe_NGatherers(b, 8) }
+
+/*
+	Target: the group cost of allocating chans, subscribing them, and triggering.
+
+	This should be approximately the sum of the subscribe and trigger tests,
+	if all in the world adds up nicely.
+*/
+func DoBenchmkLatchFullCycle_NGatherers(b *testing.B, n int) {
+	subbatch(b, func(b *testing.B) {
+		b.StopTimer()
+		latchPool := make([]Latch, b.N)
+		for i := 0; i < b.N; i++ {
+			latchPool[i] = New()
+		}
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			x := latchPool[i]
+			for j := 0; j < n; j++ {
+				x.WaitSelectably(make(chan interface{}, 1))
+			}
+			x.Trigger()
+		}
+	})
+}
+func BenchmarkLatchFullCycle_0Gatherers(b *testing.B) { DoBenchmkLatchFullCycle_NGatherers(b, 0) }
+func BenchmarkLatchFullCycle_1Gatherers(b *testing.B) { DoBenchmkLatchFullCycle_NGatherers(b, 1) }
+func BenchmarkLatchFullCycle_2Gatherers(b *testing.B) { DoBenchmkLatchFullCycle_NGatherers(b, 2) }
+func BenchmarkLatchFullCycle_4Gatherers(b *testing.B) { DoBenchmkLatchFullCycle_NGatherers(b, 4) }
+func BenchmarkLatchFullCycle_8Gatherers(b *testing.B) { DoBenchmkLatchFullCycle_NGatherers(b, 8) }

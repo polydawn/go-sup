@@ -148,6 +148,13 @@ func BenchmarkLatchTriggerOnly_8Gatherers(b *testing.B) { DoBenchmkLatchTriggerO
 	Note: you don't wanna do this one with zero gatherers, because it's
 	basically testing a noop but doing so in a way that hammers pause button
 	and thus wastes a ton of wall clock time on memory stats that don't matter.
+
+	Note: all these are subscribes before the trigger; none after.
+	There is no test for the post-trigger subscribes.
+	It's not clear what use this would be, because they essentially hit
+	the same lock mechanism (for that matter, most of what we're testing
+	here with increasing chan counts is the chan alloc, and then an
+	`append` call inside the latch; the lock is also all the same here).
 */
 func DoBenchmkLatchSubscribe_NGatherers(b *testing.B, n int) {
 	subbatch(b, func(b *testing.B) {

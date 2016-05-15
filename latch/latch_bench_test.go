@@ -8,13 +8,13 @@ import (
 /*
 	RESULTS
 
-		BenchmarkLatchAllocation                 5000000               344 ns/op
-		BenchmarkBaseline_JsonUnmarshalling       100000             14420 ns/op
-		BenchmarkLatchTrigger_0Listeners        10000000               188 ns/op
-		BenchmarkLatchTrigger_1Listeners         5000000               255 ns/op
-		BenchmarkLatchTrigger_2Listeners         5000000               316 ns/op
-		BenchmarkLatchTrigger_4Listeners         3000000               462 ns/op
-		BenchmarkLatchTrigger_8Listeners         2000000               729 ns/op
+		BenchmarkLatchAllocation                 5000000               270 ns/op
+		BenchmarkBaseline_JsonUnmarshalling      1000000              2226 ns/op
+		BenchmarkLatchTrigger_0Listeners        10000000               187 ns/op
+		BenchmarkLatchTrigger_1Listeners         5000000               252 ns/op
+		BenchmarkLatchTrigger_2Listeners         5000000               313 ns/op
+		BenchmarkLatchTrigger_4Listeners         3000000               459 ns/op
+		BenchmarkLatchTrigger_8Listeners         2000000               724 ns/op
 
 	Cautions:
 
@@ -50,9 +50,6 @@ func BenchmarkLatchAllocation(b *testing.B) {
 		must consistently choose either strategy 1 or consistently strategy 4,
 		or they will not be comparable apples-to-apples.
 
-		Strategy 1 is recommended by default, because if you need to allocate
-		coordinated sets of things up front, it keeps working (4 doesn't).
-
 		Note that `StopTimer` and `StartTimer` can NOT solve these issues
 		unless they're well above a certain timescale, and even then are
 		rather remarkably costly in terms of wall clock run time your
@@ -64,12 +61,25 @@ func BenchmarkLatchAllocation(b *testing.B) {
 		Meanwhile, running with start/stops makes wall clock timme jump from
 		2sec to over 100 sec (!), because of the overhead the benchmark system
 		sinks into gathering memory stats in every toggle.
+
+		Here, we had to go a step further, because of two competing influences:
+		the test itself is short, so go bench will run our `b.N` sky high;
+		and yet our memory usage will get ridiculous at that `N` and start
+		to have other difficult-to-constrain deleterious effects.
+		This shouldn't be a common problem; it's most likely a sign of a
+		badly targetted benchmark (and this is; it's illustrative only).
+		(See git history for an exploration of how memory pressure had a
+		*crushing* effect on a *subsequent* benchmark function!  This is a
+		situation to avoid at all costs.)
 	*/
-	latchPool := make([]Latch, b.N)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		latchPool[i] = New()
-	}
+	subbatch(b, func(b *testing.B) {
+		b.StopTimer()
+		latchPool := make([]Latch, b.N)
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			latchPool[i] = New()
+		}
+	})
 }
 
 // Totally unrelated.  Just to put things in context.

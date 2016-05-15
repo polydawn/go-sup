@@ -1,0 +1,276 @@
+
+### Results of a run where the "maxBatch" size is so high it doesn't come into effect at all
+
+testing: warning: no tests to run
+PASS
+BenchmarkLatchAllocation
+orig: 1
+  1 left, doing 1
+    mem time: 488118 ns
+   done: 1/1
+
+orig: 100
+  100 left, doing 100
+    mem time: 649281 ns
+   done: 100/100
+
+orig: 10000
+  10000 left, doing 10000
+    mem time: 1985892 ns
+   done: 10000/10000
+
+orig: 1000000
+  1000000 left, doing 1000000
+    mem time: 145831369 ns
+   done: 1000000/1000000
+
+orig: 5000000
+  5000000 left, doing 5000000
+    mem time: 858201491 ns
+   done: 5000000/5000000
+ 5000000               339 ns/op
+BenchmarkBaseline_JsonUnmarshalling       100000             14328 ns/op
+BenchmarkLatchTrigger_0Listeners        10000000               193 ns/op
+BenchmarkLatchTrigger_1Listeners         5000000               256 ns/op
+BenchmarkLatchTrigger_2Listeners         5000000               317 ns/op
+BenchmarkLatchTrigger_4Listeners         3000000               459 ns/op
+BenchmarkLatchTrigger_8Listeners         2000000               723 ns/op
+ok      go-sup/latch      72.511s
+
+
+
+
+
+
+
+### Now with subbatching
+
+testing: warning: no tests to run
+PASS
+BenchmarkLatchAllocation
+orig: 1
+  1 left, doing 1
+    mem time: 692598 ns
+   done: 1/1
+
+orig: 100
+  100 left, doing 100
+    mem time: 1117366 ns
+   done: 100/100
+
+orig: 10000
+  10000 left, doing 10000
+    mem time: 4562340 ns
+   done: 10000/10000
+
+orig: 1000000
+  1000000 left, doing 100000
+    mem time: 19346114 ns
+  900000 left, doing 100000
+    mem time: 27690736 ns
+  800000 left, doing 100000
+    mem time: 36063725 ns
+  700000 left, doing 100000
+    mem time: 42829161 ns
+  600000 left, doing 100000
+    mem time: 47272195 ns
+  500000 left, doing 100000
+    mem time: 58478241 ns
+  400000 left, doing 100000
+    mem time: 65225397 ns
+  300000 left, doing 100000
+    mem time: 71146306 ns
+  200000 left, doing 100000
+    mem time: 84539397 ns
+  100000 left, doing 100000
+    mem time: 93718550 ns
+   done: 1000000/1000000
+
+orig: 5000000
+  5000000 left, doing 100000
+    mem time: 111071986 ns
+  4900000 left, doing 100000
+    mem time: 119326564 ns
+  4800000 left, doing 100000
+    mem time: 127790931 ns
+  4700000 left, doing 100000
+    mem time: 134560525 ns
+  4600000 left, doing 100000
+    mem time: 139105154 ns
+  4500000 left, doing 100000
+    mem time: 150589644 ns
+  4400000 left, doing 100000
+    mem time: 157216146 ns
+  4300000 left, doing 100000
+    mem time: 163170361 ns
+  4200000 left, doing 100000
+    mem time: 176749422 ns
+  4100000 left, doing 100000
+    mem time: 185930324 ns
+  4000000 left, doing 100000
+    mem time: 195590290 ns
+  3900000 left, doing 100000
+    mem time: 204366196 ns
+  3800000 left, doing 100000
+    mem time: 211665534 ns
+  3700000 left, doing 100000
+    mem time: 216827168 ns
+  3600000 left, doing 100000
+    mem time: 228211755 ns
+  3500000 left, doing 100000
+    mem time: 234907894 ns
+  3400000 left, doing 100000
+    mem time: 240796853 ns
+  3300000 left, doing 100000
+    mem time: 254259418 ns
+  3200000 left, doing 100000
+    mem time: 263425285 ns
+  3100000 left, doing 100000
+    mem time: 272931214 ns
+  3000000 left, doing 100000
+    mem time: 281430406 ns
+  2900000 left, doing 100000
+    mem time: 288431289 ns
+  2800000 left, doing 100000
+    mem time: 293159096 ns
+  2700000 left, doing 100000
+    mem time: 304376842 ns
+  2600000 left, doing 100000
+    mem time: 310966660 ns
+  2500000 left, doing 100000
+    mem time: 316918623 ns
+  2400000 left, doing 100000
+    mem time: 330440256 ns
+  2300000 left, doing 100000
+    mem time: 339490373 ns
+  2200000 left, doing 100000
+    mem time: 349186230 ns
+  2100000 left, doing 100000
+    mem time: 357607950 ns
+  2000000 left, doing 100000
+    mem time: 364589509 ns
+  1900000 left, doing 100000
+    mem time: 369296952 ns
+  1800000 left, doing 100000
+    mem time: 380618340 ns
+  1700000 left, doing 100000
+    mem time: 387208627 ns
+  1600000 left, doing 100000
+    mem time: 393275186 ns
+  1500000 left, doing 100000
+    mem time: 406831557 ns
+  1400000 left, doing 100000
+    mem time: 415827420 ns
+  1300000 left, doing 100000
+    mem time: 425330421 ns
+  1200000 left, doing 100000
+    mem time: 433858808 ns
+  1100000 left, doing 100000
+    mem time: 440981353 ns
+  1000000 left, doing 100000
+    mem time: 445653661 ns
+  900000 left, doing 100000
+    mem time: 456965769 ns
+  800000 left, doing 100000
+    mem time: 463513464 ns
+  700000 left, doing 100000
+    mem time: 469394674 ns
+  600000 left, doing 100000
+    mem time: 482841939 ns
+  500000 left, doing 100000
+    mem time: 491961463 ns
+  400000 left, doing 100000
+    mem time: 501479151 ns
+  300000 left, doing 100000
+    mem time: 509988742 ns
+  200000 left, doing 100000
+    mem time: 516998331 ns
+  100000 left, doing 100000
+    mem time: 521687944 ns
+   done: 5000000/5000000
+ 5000000               266 ns/op
+BenchmarkBaseline_JsonUnmarshalling      1000000              2208 ns/op
+BenchmarkLatchTrigger_0Listeners        10000000               201 ns/op
+BenchmarkLatchTrigger_1Listeners         5000000               266 ns/op
+BenchmarkLatchTrigger_2Listeners         5000000               326 ns/op
+BenchmarkLatchTrigger_4Listeners         3000000               470 ns/op
+BenchmarkLatchTrigger_8Listeners         2000000               733 ns/op
+ok      go-sup/latch      72.469s
+
+
+
+
+
+### Wow!
+
+So about how much time is GC in the fullbulk run?   (858201491-145831369)/5000000 => 142.47402
+So about how much time is GC in the subbatch run?   (521687944-93718550)/5000000  => 85.59387
+The difference there?           142.4-85.5 => 56.9
+The difference in bench time?   339  -266  => 73
+Those differences, compared?    73-56.9 => 16
+Ok, on the overall score, just 16 nanos are unexplained now.  That's more or less noise territory here.
+
+
+### ... how noisy IS gc, when it shows up?
+
+Let's take each snapshot of the total, substract out what we saw at the last checkpoint, and divide
+that back down to the batch size, just so we're consistently looking at the same ballpark numbers.
+
+There's clearly spikes up to 2x greater between runs (different intensities of GCs perhaps?  or just
+event clustering?  didn't look further), 60ns/100k jumps easily popping up.  So, yes,
+those difference still unexplained could *readily* be accounted for here, simply because
+ -- scale check: each of these lines is being captured about ~20 milliseconds apart --
+part of another GC might have slipped between test funcs entirely.
+
+On the other hand, it's pretty stable over time.  The running average is quite level:
+the overall average here is 84; the averages of windows 5 records wide range between
+about 70 and 95.
+
+(127790931-119326564)/100000  ->   84.64367
+(134560525-127790931)/100000  ->   67.69594
+(139105154-134560525)/100000  ->   45.44629
+(150589644-139105154)/100000  ->  114.84490
+(157216146-150589644)/100000  ->   66.26502
+(163170361-157216146)/100000  ->   59.54215
+(176749422-163170361)/100000  ->  135.79061
+(185930324-176749422)/100000  ->   91.80902
+(195590290-185930324)/100000  ->   96.59966
+(204366196-195590290)/100000  ->   87.75906
+(211665534-204366196)/100000  ->   72.99338
+(216827168-211665534)/100000  ->   51.61634
+(228211755-216827168)/100000  ->  113.84587
+(234907894-228211755)/100000  ->   66.96139
+(240796853-234907894)/100000  ->   58.88959
+(254259418-240796853)/100000  ->  134.62565
+(263425285-254259418)/100000  ->   91.65867
+(272931214-263425285)/100000  ->   95.05929
+(281430406-272931214)/100000  ->   84.99192
+(288431289-281430406)/100000  ->   70.00883
+(293159096-288431289)/100000  ->   47.27807
+(304376842-293159096)/100000  ->  112.17746
+(310966660-304376842)/100000  ->   65.89818
+(316918623-310966660)/100000  ->   59.51963
+(330440256-316918623)/100000  ->  135.21633
+(339490373-330440256)/100000  ->   90.50117
+(349186230-339490373)/100000  ->   96.95857
+(357607950-349186230)/100000  ->   84.21720
+(364589509-357607950)/100000  ->   69.81559
+(369296952-364589509)/100000  ->   47.07443
+(380618340-369296952)/100000  ->  113.21388
+(387208627-380618340)/100000  ->   65.90287
+(393275186-387208627)/100000  ->   60.66559
+(406831557-393275186)/100000  ->  135.56371
+(415827420-406831557)/100000  ->   89.95863
+(425330421-415827420)/100000  ->   95.03001
+(433858808-425330421)/100000  ->   85.28387
+(440981353-433858808)/100000  ->   71.22545
+(445653661-440981353)/100000  ->   46.72308
+(456965769-445653661)/100000  ->  113.12108
+(463513464-456965769)/100000  ->   65.47695
+(469394674-463513464)/100000  ->   58.81210
+(482841939-469394674)/100000  ->  134.47265
+(491961463-482841939)/100000  ->   91.19524
+(501479151-491961463)/100000  ->   95.17688
+(509988742-501479151)/100000  ->   85.09591
+(516998331-509988742)/100000  ->   70.09589
+(521687944-516998331)/100000  ->   46.89613

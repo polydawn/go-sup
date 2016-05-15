@@ -8,13 +8,13 @@ import (
 /*
 	RESULTS
 
-		BenchmarkLatchAllocation                 5000000               322 ns/op
-		BenchmarkBaseline_JsonUnmarshalling      1000000              1967 ns/op
-		BenchmarkLatchTrigger_0Listeners         3000000               538 ns/op
-		BenchmarkLatchTrigger_1Listeners         1000000              1406 ns/op
-		BenchmarkLatchTrigger_2Listeners          500000              2578 ns/op
-		BenchmarkLatchTrigger_4Listeners          300000              4291 ns/op
-		BenchmarkLatchTrigger_8Listeners          200000              8040 ns/op
+		BenchmarkLatchAllocation                 5000000               362 ns/op
+		BenchmarkBaseline_JsonUnmarshalling       100000             15494 ns/op
+		BenchmarkLatchTrigger_0Listeners          500000              2741 ns/op
+		BenchmarkLatchTrigger_1Listeners          200000              9810 ns/op
+		BenchmarkLatchTrigger_2Listeners          100000             16107 ns/op
+		BenchmarkLatchTrigger_4Listeners           50000             24316 ns/op
+		BenchmarkLatchTrigger_8Listeners           30000             48357 ns/op
 
 	Cautions:
 
@@ -50,6 +50,9 @@ func BenchmarkLatchAllocation(b *testing.B) {
 		must consistently choose either strategy 1 or consistently strategy 4,
 		or they will not be comparable apples-to-apples.
 
+		Strategy 1 is recommended by default, because if you need to allocate
+		coordinated sets of things up front, it keeps working (4 doesn't).
+
 		Note that `StopTimer` and `StartTimer` can NOT solve these issues
 		unless they're well above a certain timescale, and even then are
 		rather remarkably costly in terms of wall clock run time your
@@ -62,11 +65,11 @@ func BenchmarkLatchAllocation(b *testing.B) {
 		2sec to over 100 sec (!), because of the overhead the benchmark system
 		sinks into gathering memory stats in every toggle.
 	*/
-	var x Latch
+	latchPool := make([]Latch, b.N)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		x = New()
+		latchPool[i] = New()
 	}
-	_ = x
 }
 
 // Totally unrelated.  Just to put things in context.

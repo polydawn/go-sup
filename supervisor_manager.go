@@ -52,7 +52,6 @@ func (svr *Supervisor) supmgr_stepAccepting() supmgr_step {
 	case <-svr.ctrlChan_quit:
 		return svr.supmgr_stepQuitting
 	}
-	panic("go-sup bug: missing transition")
 }
 
 func (svr *Supervisor) supmgr_stepWinddown() supmgr_step {
@@ -71,7 +70,6 @@ func (svr *Supervisor) supmgr_stepWinddown() supmgr_step {
 	case <-svr.ctrlChan_quit:
 		panic("go-sup bug, cannot transition winddown->quitting")
 	}
-	panic("go-sup bug: missing transition")
 }
 
 func (svr *Supervisor) supmgr_stepQuitting() supmgr_step {

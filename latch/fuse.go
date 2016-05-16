@@ -1,19 +1,18 @@
 package latch
 
 import (
-	"sync"
+	"sync/atomic"
 )
 
 type none struct{}
 
 type fuse struct {
 	ch chan none
-	// mutex and custom instead of sync.Once because we neither care about
-	//  a lock-free "fast path" for this application nor need defers.
+	// single CAS field instead of sync.Once or even sync.Mutex, because
+	//  we have a very simple application and need precisely nothing more.
 	// a defer tacks on about 120ns on a scale where our entire purpose
-	//  takes about 90ns.  just ain't gilding we need for an unfailable op.
-	mu   sync.Mutex
-	done bool
+	//  takes about 65ns.  just ain't gilding we need for an unfailable op.
+	done int32
 }
 
 func NewFuse() *fuse {
@@ -21,14 +20,10 @@ func NewFuse() *fuse {
 }
 
 func (f *fuse) Fire() {
-	f.mu.Lock()
-	if f.done {
-		f.mu.Unlock()
+	if !atomic.CompareAndSwapInt32(&f.done, 0, 1) {
 		return
 	}
 	close(f.ch)
-	f.done = true
-	f.mu.Unlock()
 	return
 }
 

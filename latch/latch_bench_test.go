@@ -33,16 +33,17 @@ func init() {
 		BenchmarkLatchFullCycle_2Gatherers-4      200000              1764 ns/op             272 B/op          9 allocs/op
 		BenchmarkLatchFullCycle_4Gatherers-4      100000              3321 ns/op             560 B/op         18 allocs/op
 		BenchmarkLatchFullCycle_8Gatherers-4       50000              6132 ns/op            1136 B/op         35 allocs/op
-		BenchmarkFuseTriggerOnly_0Waiters-4       500000               426 ns/op               0 B/op          0 allocs/op
-		BenchmarkFuseTriggerOnly_1Waiters-4       500000               755 ns/op               0 B/op          0 allocs/op
-		BenchmarkFuseTriggerOnly_2Waiters-4       300000               961 ns/op               0 B/op          0 allocs/op
-		BenchmarkFuseTriggerOnly_4Waiters-4       200000              1443 ns/op               0 B/op          0 allocs/op
-		BenchmarkFuseTriggerOnly_8Waiters-4       100000              2413 ns/op               0 B/op          0 allocs/op
-		BenchmarkFuseTriggerOnly2_0Waiters-4     1000000               413 ns/op               0 B/op          0 allocs/op
-		BenchmarkFuseTriggerOnly2_1Waiters-4      500000               732 ns/op               0 B/op          0 allocs/op
-		BenchmarkFuseTriggerOnly2_2Waiters-4      500000               753 ns/op               0 B/op          0 allocs/op
-		BenchmarkFuseTriggerOnly2_4Waiters-4      500000               765 ns/op               0 B/op          0 allocs/op
-		BenchmarkFuseTriggerOnly2_8Waiters-4      500000               744 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly_0Waiters-4      3000000                82.2 ns/op             0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly_1Waiters-4      1000000               379 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly_2Waiters-4      1000000               650 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly_4Waiters-4       200000              1190 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly_8Waiters-4       200000              2263 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly2_0Waiters-4     3000000                95.2 ns/op             0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly2_1Waiters-4     1000000               383 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly2_2Waiters-4     1000000               385 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly2_4Waiters-4     1000000               394 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly2_8Waiters-4     1000000               408 ns/op               0 B/op          0 allocs/op
+
 
 	Cautions:
 

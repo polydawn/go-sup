@@ -7,8 +7,13 @@ import (
 type none struct{}
 
 type fuse struct {
-	ch   chan none
-	once sync.Once
+	ch chan none
+	// mutex and custom instead of sync.Once because we neither care about
+	//  a lock-free "fast path" for this application nor need defers.
+	// a defer tacks on about 120ns on a scale where our entire purpose
+	//  takes about 90ns.  just ain't gilding we need for an unfailable op.
+	mu   sync.Mutex
+	done bool
 }
 
 func NewFuse() *fuse {
@@ -16,12 +21,15 @@ func NewFuse() *fuse {
 }
 
 func (f *fuse) Fire() {
-	f.once.Do(f.snap)
-}
-
-// never call this directly, is only to be handed to the once'ing
-func (f *fuse) snap() {
+	f.mu.Lock()
+	if f.done {
+		f.mu.Unlock()
+		return
+	}
 	close(f.ch)
+	f.done = true
+	f.mu.Unlock()
+	return
 }
 
 func (f *fuse) Selectable() <-chan none {

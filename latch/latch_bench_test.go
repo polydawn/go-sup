@@ -38,10 +38,18 @@ func init() {
 
 		- The `BenchmarkLatchTrigger_*Listeners` family uses unbuffered channels,
 		  because we don't want to start measuring the vageries of goroutine scheduling.
+		- The json "canary" test is phased by way more weird stuff than you'd like to think.
+		  - The amount of GC work created by the first test phases it (yes,
+		    regardless of the benchmark framework's attempt to compensate for that).
+		  - Bizarrely, maxprocs affects the json canary more than any other test.
 
 	Observations:
 
-		- Setting one listener costs about half as much as a small json parse.
+		- Setting one listener costs about half (or less) as much as a small json parse.
+		- Subscribing gatherer chans to the latch is O(n) (no surprise there).
+		  - ~700ns per additional gatherer
+		- Triggering the latch is O(n) in the gatherer count (no surprise there).
+		  - ~62-68ns per additional gatherer to signal; ~200ns baseline.
 */
 
 func BenchmarkLatchAllocation(b *testing.B) {

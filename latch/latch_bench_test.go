@@ -62,14 +62,14 @@ func init() {
 		  - ~62-68ns per additional buffered gatherer to signal with no blocking receiver; ~200ns baseline -- per BufDeadend tests
 		  - ~340-420ns per additional unbuffered gatherer to signal which taps the scheduler; ~200ns basline -- per UnbufGather test
 		- Closing an empty/signal channel is O(n) in the blocked reader count!
-		  - ~250ns per additional blocked reader
+		  - ~290-340ns per additional blocked reader
 		  - (not shown) Additional reads after the block returns are so cheap they're immeasurable (no suprise there).
 		  - (not shown) Changing the fuse chan to buffered size=1 has no impact (no surprise there; it's still blocking-or-not for the reader).
 		- Comparing the previous two points:
-		  - *Scheduling* is the biggest cost incurred; it's a approx 250ns on these tests.
+		  - *Scheduling* is the biggest cost incurred; it's approx 300ns on these tests.
 		    Whether or not there's a blocked reader significantly predominates other factors.
 		  - `close` has essentially no other overhead, being a builtin (I presume).
-		  - Using lists of channels for the gatherer pattern heaps another 100ns or so onto the minimum scheduling cost.
+		  - Using lists of channels for the gatherer pattern heaps another 70ns or thereabout onto the costs, mostly for the lock.
 		  - Remember, comparing these on costs is academic; they fundamentally don't have the same blocking patterns.
 		  - Remember, the scale of these costs are ringing in at 1/10th of the cost of a 28-char json unmarshal.
 */

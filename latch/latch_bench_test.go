@@ -17,22 +17,32 @@ func init() {
 
 	RESULTS
 
-		BenchmarkLatchAllocation-4               1000000               254 ns/op              56 B/op          2 allocs/op
-		BenchmarkBaseline_JsonUnmarshalling-4     100000              3188 ns/op             312 B/op          5 allocs/op
-		BenchmarkLatchTriggerOnly_0Gatherers-4   2000000               193 ns/op               0 B/op          0 allocs/op
-		BenchmarkLatchTriggerOnly_1Gatherers-4   1000000               256 ns/op               0 B/op          0 allocs/op
-		BenchmarkLatchTriggerOnly_2Gatherers-4   1000000               318 ns/op               0 B/op          0 allocs/op
-		BenchmarkLatchTriggerOnly_4Gatherers-4   1000000               465 ns/op               0 B/op          0 allocs/op
-		BenchmarkLatchTriggerOnly_8Gatherers-4    500000               733 ns/op               0 B/op          0 allocs/op
-		BenchmarkLatchSubscribe_1Gatherers-4      500000               591 ns/op             128 B/op          4 allocs/op
-		BenchmarkLatchSubscribe_2Gatherers-4      200000              1315 ns/op             272 B/op          9 allocs/op
-		BenchmarkLatchSubscribe_4Gatherers-4      100000              2641 ns/op             560 B/op         18 allocs/op
-		BenchmarkLatchSubscribe_8Gatherers-4       50000              5216 ns/op            1136 B/op         35 allocs/op
+		BenchmarkLatchAllocation-4               1000000               253 ns/op              56 B/op          2 allocs/op
+		BenchmarkBaseline_JsonUnmarshalling-4     100000              3272 ns/op             312 B/op          5 allocs/op
+		BenchmarkLatchTriggerOnly_0Gatherers-4   2000000               191 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_1Gatherers-4   1000000               255 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_2Gatherers-4   1000000               316 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_4Gatherers-4   1000000               464 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_8Gatherers-4    500000               740 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchSubscribe_1Gatherers-4      500000               619 ns/op             128 B/op          4 allocs/op
+		BenchmarkLatchSubscribe_2Gatherers-4      200000              1359 ns/op             272 B/op          9 allocs/op
+		BenchmarkLatchSubscribe_4Gatherers-4      100000              2707 ns/op             560 B/op         18 allocs/op
+		BenchmarkLatchSubscribe_8Gatherers-4       50000              5244 ns/op            1136 B/op         35 allocs/op
 		BenchmarkLatchFullCycle_0Gatherers-4     2000000               193 ns/op               0 B/op          0 allocs/op
-		BenchmarkLatchFullCycle_1Gatherers-4      300000               871 ns/op             128 B/op          4 allocs/op
-		BenchmarkLatchFullCycle_2Gatherers-4      200000              1724 ns/op             272 B/op          9 allocs/op
-		BenchmarkLatchFullCycle_4Gatherers-4      100000              3052 ns/op             560 B/op         18 allocs/op
-		BenchmarkLatchFullCycle_8Gatherers-4       50000              6273 ns/op            1136 B/op         35 allocs/op
+		BenchmarkLatchFullCycle_1Gatherers-4      300000               895 ns/op             128 B/op          4 allocs/op
+		BenchmarkLatchFullCycle_2Gatherers-4      200000              1764 ns/op             272 B/op          9 allocs/op
+		BenchmarkLatchFullCycle_4Gatherers-4      100000              3321 ns/op             560 B/op         18 allocs/op
+		BenchmarkLatchFullCycle_8Gatherers-4       50000              6132 ns/op            1136 B/op         35 allocs/op
+		BenchmarkFuseTriggerOnly_0Waiters-4       500000               426 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly_1Waiters-4       500000               755 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly_2Waiters-4       300000               961 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly_4Waiters-4       200000              1443 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly_8Waiters-4       100000              2413 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly2_0Waiters-4     1000000               413 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly2_1Waiters-4      500000               732 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly2_2Waiters-4      500000               753 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly2_4Waiters-4      500000               765 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly2_8Waiters-4      500000               744 ns/op               0 B/op          0 allocs/op
 
 	Cautions:
 
@@ -50,6 +60,12 @@ func init() {
 		  - ~700ns per additional gatherer
 		- Triggering the latch is O(n) in the gatherer count (no surprise there).
 		  - ~62-68ns per additional gatherer to signal; ~200ns baseline.
+		- Closing an empty/signal channel is O(n) in the blocked reader count!
+		  - ~250ns per additional blocked reader -- more expensive than an exclusive lock and fan-out!
+		  - Remember though, comparing these on costs is academic; they fundamentally don't do the same thing;
+		    and furthermore our current tests are unfair because the latch is putting to a buffered channel, which schedules differently.
+		  - Additional reads after the block returns are so cheap they're immeasurable (no suprise there).
+		  - (not shown) Changing the fuse chan to buffered size=1 has no impact (no surprise there; it's still blocking-or-not for the reader).
 */
 
 func BenchmarkLatchAllocation(b *testing.B) {
@@ -223,3 +239,66 @@ func BenchmarkLatchFullCycle_1Gatherers(b *testing.B) { DoBenchmkLatchFullCycle_
 func BenchmarkLatchFullCycle_2Gatherers(b *testing.B) { DoBenchmkLatchFullCycle_NGatherers(b, 2) }
 func BenchmarkLatchFullCycle_4Gatherers(b *testing.B) { DoBenchmkLatchFullCycle_NGatherers(b, 4) }
 func BenchmarkLatchFullCycle_8Gatherers(b *testing.B) { DoBenchmkLatchFullCycle_NGatherers(b, 8) }
+
+/*
+	Target: the cost of *triggering*.
+
+	We spawn $N goroutines to each block reading on the fuse channel.
+	This means we have a very different test than the other latch tests,
+	sadly; but there's no other way to "subscribe".
+
+	Not:
+		- allocating the latch
+		- allocating the gather chans
+		- signing up the gather chans
+*/
+func DoBenchmkFuseTriggerOnly_NWaiters(b *testing.B, n int) {
+	subbatch(b, func(b *testing.B) {
+		b.StopTimer()
+		fusePool := make([]*fuse, b.N)
+		for i := 0; i < b.N; i++ {
+			x := NewFuse()
+			for j := 0; j < n; j++ {
+				go func() { <-x.Selectable() }()
+			}
+			fusePool[i] = x
+		}
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			fusePool[i].Fire()
+		}
+	})
+}
+func BenchmarkFuseTriggerOnly_0Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly_NWaiters(b, 0) }
+func BenchmarkFuseTriggerOnly_1Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly_NWaiters(b, 1) }
+func BenchmarkFuseTriggerOnly_2Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly_NWaiters(b, 2) }
+func BenchmarkFuseTriggerOnly_4Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly_NWaiters(b, 4) }
+func BenchmarkFuseTriggerOnly_8Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly_NWaiters(b, 8) }
+
+/*
+	Target: the cost of *triggering*; a slightly different way because Questions
+*/
+func DoBenchmkFuseTriggerOnly2_NWaiters(b *testing.B, n int) {
+	subbatch(b, func(b *testing.B) {
+		b.StopTimer()
+		fusePool := make([]*fuse, b.N)
+		for i := 0; i < b.N; i++ {
+			x := NewFuse()
+			go func() {
+				for j := 0; j < n; j++ {
+					<-x.Selectable()
+				}
+			}()
+			fusePool[i] = x
+		}
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			fusePool[i].Fire()
+		}
+	})
+}
+func BenchmarkFuseTriggerOnly2_0Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly2_NWaiters(b, 0) }
+func BenchmarkFuseTriggerOnly2_1Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly2_NWaiters(b, 1) }
+func BenchmarkFuseTriggerOnly2_2Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly2_NWaiters(b, 2) }
+func BenchmarkFuseTriggerOnly2_4Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly2_NWaiters(b, 4) }
+func BenchmarkFuseTriggerOnly2_8Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly2_NWaiters(b, 8) }

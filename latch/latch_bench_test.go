@@ -38,11 +38,6 @@ func init() {
 		BenchmarkFuseTriggerOnly_2Waiters-4       500000               628 ns/op               0 B/op          0 allocs/op
 		BenchmarkFuseTriggerOnly_4Waiters-4       200000              1177 ns/op               0 B/op          0 allocs/op
 		BenchmarkFuseTriggerOnly_8Waiters-4       200000              2388 ns/op               0 B/op          0 allocs/op
-		BenchmarkFuseTriggerOnly2_0Waiters-4     5000000                69.5 ns/op             0 B/op          0 allocs/op
-		BenchmarkFuseTriggerOnly2_1Waiters-4     1000000               364 ns/op               0 B/op          0 allocs/op
-		BenchmarkFuseTriggerOnly2_2Waiters-4     1000000               373 ns/op               0 B/op          0 allocs/op
-		BenchmarkFuseTriggerOnly2_4Waiters-4     1000000               368 ns/op               0 B/op          0 allocs/op
-		BenchmarkFuseTriggerOnly2_8Waiters-4     1000000               406 ns/op               0 B/op          0 allocs/op
 
 	Cautions:
 
@@ -64,7 +59,7 @@ func init() {
 		  - ~250ns per additional blocked reader -- more expensive than an exclusive lock and fan-out!
 		  - Remember though, comparing these on costs is academic; they fundamentally don't do the same thing;
 		    and furthermore our current tests are unfair because the latch is putting to a buffered channel, which schedules differently.
-		  - Additional reads after the block returns are so cheap they're immeasurable (no suprise there).
+		  - (not shown) Additional reads after the block returns are so cheap they're immeasurable (no suprise there).
 		  - (not shown) Changing the fuse chan to buffered size=1 has no impact (no surprise there; it's still blocking-or-not for the reader).
 */
 
@@ -274,31 +269,3 @@ func BenchmarkFuseTriggerOnly_1Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly_
 func BenchmarkFuseTriggerOnly_2Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly_NWaiters(b, 2) }
 func BenchmarkFuseTriggerOnly_4Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly_NWaiters(b, 4) }
 func BenchmarkFuseTriggerOnly_8Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly_NWaiters(b, 8) }
-
-/*
-	Target: the cost of *triggering*; a slightly different way because Questions
-*/
-func DoBenchmkFuseTriggerOnly2_NWaiters(b *testing.B, n int) {
-	subbatch(b, func(b *testing.B) {
-		b.StopTimer()
-		fusePool := make([]*fuse, b.N)
-		for i := 0; i < b.N; i++ {
-			x := NewFuse()
-			go func() {
-				for j := 0; j < n; j++ {
-					<-x.Selectable()
-				}
-			}()
-			fusePool[i] = x
-		}
-		b.StartTimer()
-		for i := 0; i < b.N; i++ {
-			fusePool[i].Fire()
-		}
-	})
-}
-func BenchmarkFuseTriggerOnly2_0Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly2_NWaiters(b, 0) }
-func BenchmarkFuseTriggerOnly2_1Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly2_NWaiters(b, 1) }
-func BenchmarkFuseTriggerOnly2_2Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly2_NWaiters(b, 2) }
-func BenchmarkFuseTriggerOnly2_4Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly2_NWaiters(b, 4) }
-func BenchmarkFuseTriggerOnly2_8Waiters(b *testing.B) { DoBenchmkFuseTriggerOnly2_NWaiters(b, 8) }

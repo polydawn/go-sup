@@ -17,27 +17,32 @@ func init() {
 
 	RESULTS
 
-		BenchmarkLatchAllocation-4               1000000               253 ns/op              56 B/op          2 allocs/op
-		BenchmarkBaseline_JsonUnmarshalling-4     100000              3272 ns/op             312 B/op          5 allocs/op
-		BenchmarkLatchTriggerOnly_0Gatherers-4   2000000               191 ns/op               0 B/op          0 allocs/op
-		BenchmarkLatchTriggerOnly_1Gatherers-4   1000000               255 ns/op               0 B/op          0 allocs/op
-		BenchmarkLatchTriggerOnly_2Gatherers-4   1000000               316 ns/op               0 B/op          0 allocs/op
-		BenchmarkLatchTriggerOnly_4Gatherers-4   1000000               464 ns/op               0 B/op          0 allocs/op
-		BenchmarkLatchTriggerOnly_8Gatherers-4    500000               740 ns/op               0 B/op          0 allocs/op
-		BenchmarkLatchSubscribe_1Gatherers-4      500000               619 ns/op             128 B/op          4 allocs/op
-		BenchmarkLatchSubscribe_2Gatherers-4      200000              1359 ns/op             272 B/op          9 allocs/op
-		BenchmarkLatchSubscribe_4Gatherers-4      100000              2707 ns/op             560 B/op         18 allocs/op
-		BenchmarkLatchSubscribe_8Gatherers-4       50000              5244 ns/op            1136 B/op         35 allocs/op
-		BenchmarkLatchFullCycle_0Gatherers-4     2000000               193 ns/op               0 B/op          0 allocs/op
-		BenchmarkLatchFullCycle_1Gatherers-4      300000               895 ns/op             128 B/op          4 allocs/op
-		BenchmarkLatchFullCycle_2Gatherers-4      200000              1764 ns/op             272 B/op          9 allocs/op
-		BenchmarkLatchFullCycle_4Gatherers-4      100000              3321 ns/op             560 B/op         18 allocs/op
-		BenchmarkLatchFullCycle_8Gatherers-4       50000              6132 ns/op            1136 B/op         35 allocs/op
-		BenchmarkFuseTriggerOnly_0Waiters-4      5000000                65.3 ns/op             0 B/op          0 allocs/op
-		BenchmarkFuseTriggerOnly_1Waiters-4      1000000               338 ns/op               0 B/op          0 allocs/op
-		BenchmarkFuseTriggerOnly_2Waiters-4       500000               628 ns/op               0 B/op          0 allocs/op
-		BenchmarkFuseTriggerOnly_4Waiters-4       200000              1177 ns/op               0 B/op          0 allocs/op
-		BenchmarkFuseTriggerOnly_8Waiters-4       200000              2388 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchAllocation-4                       1000000               246 ns/op              56 B/op          2 allocs/op
+		BenchmarkBaseline_JsonUnmarshalling-4             100000              3106 ns/op             312 B/op          5 allocs/op
+		BenchmarkLatchTriggerOnly_0BufDeadend-4          2000000               188 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_1BufDeadend-4          1000000               254 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_2BufDeadend-4          1000000               315 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_4BufDeadend-4          1000000               464 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_8BufDeadend-4           500000               735 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_0UnbufGather-4         2000000               192 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_1UnbufGather-4          500000               611 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_2UnbufGather-4          300000               903 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_4UnbufGather-4          200000              1647 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchTriggerOnly_8UnbufGather-4          100000              2896 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchSubscribe_1BufDeadend-4            1000000               452 ns/op             128 B/op          4 allocs/op
+		BenchmarkLatchSubscribe_2BufDeadend-4             300000              1021 ns/op             272 B/op          9 allocs/op
+		BenchmarkLatchSubscribe_4BufDeadend-4             200000              2095 ns/op             560 B/op         18 allocs/op
+		BenchmarkLatchSubscribe_8BufDeadend-4             100000              4005 ns/op            1136 B/op         35 allocs/op
+		BenchmarkLatchFullCycle_0BufDeadend-4            2000000               189 ns/op               0 B/op          0 allocs/op
+		BenchmarkLatchFullCycle_1BufDeadend-4             500000               693 ns/op             128 B/op          4 allocs/op
+		BenchmarkLatchFullCycle_2BufDeadend-4             200000              1321 ns/op             272 B/op          9 allocs/op
+		BenchmarkLatchFullCycle_4BufDeadend-4             100000              2506 ns/op             560 B/op         18 allocs/op
+		BenchmarkLatchFullCycle_8BufDeadend-4             100000              4712 ns/op            1136 B/op         35 allocs/op
+		BenchmarkFuseTriggerOnly_0Waiters-4              5000000                62.4 ns/op             0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly_1Waiters-4              1000000               352 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly_2Waiters-4               500000               645 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly_4Waiters-4               300000              1373 ns/op               0 B/op          0 allocs/op
+		BenchmarkFuseTriggerOnly_8Waiters-4               100000              2747 ns/op               0 B/op          0 allocs/op
 
 	Cautions:
 
@@ -54,13 +59,19 @@ func init() {
 		- Subscribing gatherer chans to the latch is O(n) (no surprise there).
 		  - ~700ns per additional gatherer
 		- Triggering the latch is O(n) in the gatherer count (no surprise there).
-		  - ~62-68ns per additional gatherer to signal; ~200ns baseline.
+		  - ~62-68ns per additional buffered gatherer to signal with no blocking receiver; ~200ns baseline -- per BufDeadend tests
+		  - ~340-420ns per additional unbuffered gatherer to signal which taps the scheduler; ~200ns basline -- per UnbufGather test
 		- Closing an empty/signal channel is O(n) in the blocked reader count!
-		  - ~250ns per additional blocked reader -- more expensive than an exclusive lock and fan-out!
-		  - Remember though, comparing these on costs is academic; they fundamentally don't do the same thing;
-		    and furthermore our current tests are unfair because the latch is putting to a buffered channel, which schedules differently.
+		  - ~250ns per additional blocked reader
 		  - (not shown) Additional reads after the block returns are so cheap they're immeasurable (no suprise there).
 		  - (not shown) Changing the fuse chan to buffered size=1 has no impact (no surprise there; it's still blocking-or-not for the reader).
+		- Comparing the previous two points:
+		  - *Scheduling* is the biggest cost incurred; it's a approx 250ns on these tests.
+		    Whether or not there's a blocked reader significantly predominates other factors.
+		  - `close` has essentially no other overhead, being a builtin (I presume).
+		  - Using lists of channels for the gatherer pattern heaps another 100ns or so onto the minimum scheduling cost.
+		  - Remember, comparing these on costs is academic; they fundamentally don't have the same blocking patterns.
+		  - Remember, the scale of these costs are ringing in at 1/10th of the cost of a 28-char json unmarshal.
 */
 
 func BenchmarkLatchAllocation(b *testing.B) {
@@ -130,7 +141,8 @@ func BenchmarkBaseline_JsonUnmarshalling(b *testing.B) {
 }
 
 /*
-	Target: the cost of *triggering*.
+	Target: the cost of *triggering*; no one is actually recieving,
+	(the message just goes into a buffer -- the scheduler will NOT be tapped).
 
 	Not:
 		- allocating the latch
@@ -138,7 +150,7 @@ func BenchmarkBaseline_JsonUnmarshalling(b *testing.B) {
 		- signing up the gather chans
 		- receiving the event (it goes into the chan buffer)
 */
-func DoBenchmkLatchTriggerOnly_NGatherers(b *testing.B, n int) {
+func DoBenchmkLatchTriggerOnly_NBufDeadend(b *testing.B, n int) {
 	subbatch(b, func(b *testing.B) {
 		b.StopTimer()
 		latchPool := make([]Latch, b.N)
@@ -155,11 +167,57 @@ func DoBenchmkLatchTriggerOnly_NGatherers(b *testing.B, n int) {
 		}
 	})
 }
-func BenchmarkLatchTriggerOnly_0Gatherers(b *testing.B) { DoBenchmkLatchTriggerOnly_NGatherers(b, 0) }
-func BenchmarkLatchTriggerOnly_1Gatherers(b *testing.B) { DoBenchmkLatchTriggerOnly_NGatherers(b, 1) }
-func BenchmarkLatchTriggerOnly_2Gatherers(b *testing.B) { DoBenchmkLatchTriggerOnly_NGatherers(b, 2) }
-func BenchmarkLatchTriggerOnly_4Gatherers(b *testing.B) { DoBenchmkLatchTriggerOnly_NGatherers(b, 4) }
-func BenchmarkLatchTriggerOnly_8Gatherers(b *testing.B) { DoBenchmkLatchTriggerOnly_NGatherers(b, 8) }
+func BenchmarkLatchTriggerOnly_0BufDeadend(b *testing.B) { DoBenchmkLatchTriggerOnly_NBufDeadend(b, 0) }
+func BenchmarkLatchTriggerOnly_1BufDeadend(b *testing.B) { DoBenchmkLatchTriggerOnly_NBufDeadend(b, 1) }
+func BenchmarkLatchTriggerOnly_2BufDeadend(b *testing.B) { DoBenchmkLatchTriggerOnly_NBufDeadend(b, 2) }
+func BenchmarkLatchTriggerOnly_4BufDeadend(b *testing.B) { DoBenchmkLatchTriggerOnly_NBufDeadend(b, 4) }
+func BenchmarkLatchTriggerOnly_8BufDeadend(b *testing.B) { DoBenchmkLatchTriggerOnly_NBufDeadend(b, 8) }
+
+/*
+	Target: the cost of *triggering*, now with someone receiving
+	(immediately ready, but unbuffered -- so the scheduler will be tapped).
+
+	Not:
+		- allocating the latch
+		- allocating the gather chans
+		- signing up the gather chans
+		- receiving the event -- someone does block for it,
+		   but we don't await them.
+*/
+func DoBenchmkLatchTriggerOnly_NUnbufGather(b *testing.B, n int) {
+	subbatch(b, func(b *testing.B) {
+		b.StopTimer()
+		latchPool := make([]Latch, b.N)
+		for i := 0; i < b.N; i++ {
+			x := New()
+			for j := 0; j < n; j++ {
+				ch := make(chan interface{}, 1)
+				x.WaitSelectably(ch)
+				go func() { <-ch }()
+			}
+			latchPool[i] = x
+		}
+		b.StartTimer()
+		for i := 0; i < b.N; i++ {
+			latchPool[i].Trigger()
+		}
+	})
+}
+func BenchmarkLatchTriggerOnly_0UnbufGather(b *testing.B) {
+	DoBenchmkLatchTriggerOnly_NUnbufGather(b, 0)
+}
+func BenchmarkLatchTriggerOnly_1UnbufGather(b *testing.B) {
+	DoBenchmkLatchTriggerOnly_NUnbufGather(b, 1)
+}
+func BenchmarkLatchTriggerOnly_2UnbufGather(b *testing.B) {
+	DoBenchmkLatchTriggerOnly_NUnbufGather(b, 2)
+}
+func BenchmarkLatchTriggerOnly_4UnbufGather(b *testing.B) {
+	DoBenchmkLatchTriggerOnly_NUnbufGather(b, 4)
+}
+func BenchmarkLatchTriggerOnly_8UnbufGather(b *testing.B) {
+	DoBenchmkLatchTriggerOnly_NUnbufGather(b, 8)
+}
 
 /*
 	Target: the cost of allocating a new chan and subscribing it.
@@ -180,7 +238,7 @@ func BenchmarkLatchTriggerOnly_8Gatherers(b *testing.B) { DoBenchmkLatchTriggerO
 	here with increasing chan counts is the chan alloc, and then an
 	`append` call inside the latch; the lock is also all the same here).
 */
-func DoBenchmkLatchSubscribe_NGatherers(b *testing.B, n int) {
+func DoBenchmkLatchSubscribe_NBufDeadend(b *testing.B, n int) {
 	subbatch(b, func(b *testing.B) {
 		b.StopTimer()
 		latchPool := make([]Latch, b.N)
@@ -201,10 +259,10 @@ func DoBenchmkLatchSubscribe_NGatherers(b *testing.B, n int) {
 		b.StartTimer()
 	})
 }
-func BenchmarkLatchSubscribe_1Gatherers(b *testing.B) { DoBenchmkLatchSubscribe_NGatherers(b, 1) }
-func BenchmarkLatchSubscribe_2Gatherers(b *testing.B) { DoBenchmkLatchSubscribe_NGatherers(b, 2) }
-func BenchmarkLatchSubscribe_4Gatherers(b *testing.B) { DoBenchmkLatchSubscribe_NGatherers(b, 4) }
-func BenchmarkLatchSubscribe_8Gatherers(b *testing.B) { DoBenchmkLatchSubscribe_NGatherers(b, 8) }
+func BenchmarkLatchSubscribe_1BufDeadend(b *testing.B) { DoBenchmkLatchSubscribe_NBufDeadend(b, 1) }
+func BenchmarkLatchSubscribe_2BufDeadend(b *testing.B) { DoBenchmkLatchSubscribe_NBufDeadend(b, 2) }
+func BenchmarkLatchSubscribe_4BufDeadend(b *testing.B) { DoBenchmkLatchSubscribe_NBufDeadend(b, 4) }
+func BenchmarkLatchSubscribe_8BufDeadend(b *testing.B) { DoBenchmkLatchSubscribe_NBufDeadend(b, 8) }
 
 /*
 	Target: the group cost of allocating chans, subscribing them, and triggering.
@@ -212,7 +270,7 @@ func BenchmarkLatchSubscribe_8Gatherers(b *testing.B) { DoBenchmkLatchSubscribe_
 	This should be approximately the sum of the subscribe and trigger tests,
 	if all in the world adds up nicely.
 */
-func DoBenchmkLatchFullCycle_NGatherers(b *testing.B, n int) {
+func DoBenchmkLatchFullCycle_NBufDeadend(b *testing.B, n int) {
 	subbatch(b, func(b *testing.B) {
 		b.StopTimer()
 		latchPool := make([]Latch, b.N)
@@ -229,23 +287,23 @@ func DoBenchmkLatchFullCycle_NGatherers(b *testing.B, n int) {
 		}
 	})
 }
-func BenchmarkLatchFullCycle_0Gatherers(b *testing.B) { DoBenchmkLatchFullCycle_NGatherers(b, 0) }
-func BenchmarkLatchFullCycle_1Gatherers(b *testing.B) { DoBenchmkLatchFullCycle_NGatherers(b, 1) }
-func BenchmarkLatchFullCycle_2Gatherers(b *testing.B) { DoBenchmkLatchFullCycle_NGatherers(b, 2) }
-func BenchmarkLatchFullCycle_4Gatherers(b *testing.B) { DoBenchmkLatchFullCycle_NGatherers(b, 4) }
-func BenchmarkLatchFullCycle_8Gatherers(b *testing.B) { DoBenchmkLatchFullCycle_NGatherers(b, 8) }
+func BenchmarkLatchFullCycle_0BufDeadend(b *testing.B) { DoBenchmkLatchFullCycle_NBufDeadend(b, 0) }
+func BenchmarkLatchFullCycle_1BufDeadend(b *testing.B) { DoBenchmkLatchFullCycle_NBufDeadend(b, 1) }
+func BenchmarkLatchFullCycle_2BufDeadend(b *testing.B) { DoBenchmkLatchFullCycle_NBufDeadend(b, 2) }
+func BenchmarkLatchFullCycle_4BufDeadend(b *testing.B) { DoBenchmkLatchFullCycle_NBufDeadend(b, 4) }
+func BenchmarkLatchFullCycle_8BufDeadend(b *testing.B) { DoBenchmkLatchFullCycle_NBufDeadend(b, 8) }
 
 /*
 	Target: the cost of *triggering*.
 
 	We spawn $N goroutines to each block reading on the fuse channel.
-	This means we have a very different test than the other latch tests,
-	sadly; but there's no other way to "subscribe".
+	There's matching buffered/no-blocker test because there's no other way to "subscribe".
+	This is most comparable to the unbuffered gather chans with blocked readers
+	in the the other latch tests.
 
 	Not:
 		- allocating the latch
-		- allocating the gather chans
-		- signing up the gather chans
+		- blocking for the signals
 */
 func DoBenchmkFuseTriggerOnly_NWaiters(b *testing.B, n int) {
 	subbatch(b, func(b *testing.B) {

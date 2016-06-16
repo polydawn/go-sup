@@ -1,0 +1,7 @@
+dependencies:
+  override:
+    - ./goad init
+test:
+  override:
+    - ./goad install
+    - ./goad test

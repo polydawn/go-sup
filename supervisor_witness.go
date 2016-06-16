@@ -33,6 +33,10 @@ func (wit *witness) Handled() {
 	atomic.CompareAndSwapInt32(&wit.handled, 0, 1)
 }
 
+func (wit *witness) isHandled() bool {
+	return atomic.LoadInt32(&wit.handled) == 1
+}
+
 /*
 	Witness implementation which instantly ends as errored.
 

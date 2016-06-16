@@ -46,7 +46,12 @@ func (svr *supervisor) supmgr_stepAccepting() supmgr_step {
 		svr.supmgr_gatherChild(childDone.(*witness))
 		return svr.supmgr_stepAccepting
 
-	case <-svr.ctrlChan_winddown:
+	case err := <-svr.ctrlChan_winddown:
+		svr.err = err
+		if err != nil {
+			svr.ctrlChan_quit.Fire() // we'll already make the phase change, but for consistency
+			return svr.supmgr_stepQuitting
+		}
 		return svr.supmgr_stepWinddown
 
 	case <-svr.ctrlChan_quit.Selectable():
@@ -65,10 +70,6 @@ func (svr *supervisor) supmgr_stepWinddown() supmgr_step {
 	case childDone := <-svr.childBellcord:
 		svr.supmgr_gatherChild(childDone.(*witness))
 		return svr.supmgr_stepWinddown
-	case <-svr.ctrlChan_winddown:
-		panic("go-sup bug, winddown transition cannot occur twice")
-	case <-svr.ctrlChan_quit.Selectable():
-		panic("go-sup bug, cannot transition winddown->quitting")
 	}
 }
 
@@ -90,21 +91,40 @@ func (svr *supervisor) supmgr_stepQuitting() supmgr_step {
 }
 
 func (svr *supervisor) supmgr_stepTerminated() supmgr_step {
-	// can we finally stop selecting?
-	// ideally other people shouldn've have *any* writable channels into us
-	//  that they could possibly block on at this point.
+	// Check for tombstones from children which haven't been acknowledged.
+	//  The director func has exited -- if they're not ack'd yet, we should
+	//  keep raising them.
+	// Note that this doesn't include the dead ringer witnesses returned when
+	//  a director keeps trying to spawn after it's supposed to quit.
+	// TODO : review for useful ways to gather errors, if there are multiple.
+	if svr.err == nil {
+		for child, _ := range svr.tombstones {
+			if !child.(*witness).isHandled() {
+				svr.err = fmt.Errorf("unhandled child error: %s", child.Err())
+			}
+		}
+	}
+
+	// Let others see us as done.  yayy!
 	svr.latch_done.Trigger()
+
+	// We've finally stopped selecting.  We're done.  We're out.
+	// You'd better not have any more writes into here blocking.
+	close(svr.ctrlChan_spawn)
+	close(svr.childBellcord)
+
+	// It's over.  No more step functions to call.
 	return nil
 }
 
 func (svr *supervisor) supmgr_gatherChild(childDone *witness) {
 	delete(svr.wards, childDone)
 
-	// TODO what *do* we do when a child panicked to death?
-	// keep a bool in the witness itself and add an explicit method for acknowledging errors?
-	// if the parent exits and hasn't ack'd, then their witness returns the child's error to the grandparent?
-	// yes, at some point someone has to actually look at it and ack it.  or we bubble all the way out.  sounds right.
-
-	// we have to keep a pool of children which exited with errors.
-	// and then review it when we're in supmgr_stepTerminated, right before we trigger latch_done.
+	// If the child exited with an error, continue to keep an eye on it.
+	//  The error should be checked by the director --
+	//  if it's not acknowledged by the time the director exits,
+	//  then we'll continue to propagate it up.
+	if childDone.Err() != nil {
+		svr.tombstones[childDone] = beep{}
+	}
 }

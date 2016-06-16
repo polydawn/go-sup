@@ -8,11 +8,12 @@ import (
 
 type supervisor struct {
 	ctrlChan_spawn    chan msg_spawn   // pass spawn instructions to maintactor
-	ctrlChan_winddown chan beep        // signalled when controller strategy returns
+	ctrlChan_winddown chan error       // recieves one message: when director returns
 	ctrlChan_quit     latch.Fuse       // signalled to trigger quits, and then move directly to winddown
 	childBellcord     chan interface{} // gather child completion events
 
-	wards map[Witness]*supervisor
+	wards      map[Witness]*supervisor // currently living children
+	tombstones map[Witness]beep        // children which exited with errors
 
 	err        error
 	latch_done latch.Latch // used to communicate that the public New method can return
@@ -24,7 +25,7 @@ func newSupervisor(director Director) (*supervisor, *witness) {
 	// Line up all the control structures.
 	svr := &supervisor{
 		ctrlChan_spawn:    make(chan msg_spawn),
-		ctrlChan_winddown: make(chan beep),
+		ctrlChan_winddown: make(chan error, 1),
 		ctrlChan_quit:     latch.NewFuse(),
 		childBellcord:     make(chan interface{}),
 
@@ -65,15 +66,15 @@ func (svr *supervisor) SelectableQuit() <-chan struct{} {
 */
 func (svr *supervisor) runDirector(director Director) {
 	defer func() {
+		defer close(svr.ctrlChan_winddown)
+
 		rcvr := recover()
 
 		// No error is the easy route: it's over.  wind'r down; nothing else special.
 		if rcvr == nil {
-			svr.ctrlChan_winddown <- beep{}
+			svr.ctrlChan_winddown <- nil
 			return
 		}
-
-		// FIXME this crap has to be sent to the secretary too or that'd be a race
 
 		// If you panicked with a non-error type, you're a troll.
 		var err error
@@ -83,15 +84,8 @@ func (svr *supervisor) runDirector(director Director) {
 			err = fmt.Errorf("recovered: %T: %s", rcvr, rcvr)
 		}
 
-		// Save the error.  It should be checked by the parent (or, if it's not
-		//  acknowledged, the parent's secretary will continue to propagate it up).
-		svr.err = err
-
-		// If there was an error, every child should be cancelled automatically,
-		//  because apparently their adult supervison has declared incompetence.
-		//  (Of course, this just puts the secretary in "quitting" state; and this
-		//  supervisor's Witness still won't return until those wrap-ups are all gathered).
-		svr.ctrlChan_quit.Fire()
+		// Send the error to the secretary.  It will handle the rest.
+		svr.ctrlChan_winddown <- err
 	}()
 
 	director(svr)

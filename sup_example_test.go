@@ -2,17 +2,18 @@ package sup_test
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"."
 )
 
 func ExampleWow() {
-	sup.NewSupervisor(func(svr *sup.Supervisor) {
-		wit := svr.Spawn(func(chap sup.Chaperon) {
+	sup.NewRootSupervisor(func(svr sup.Supervisor) {
+		wit := svr.NewSupervisor(func(svr sup.Supervisor) {
 			fmt.Printf("whee, i'm an actor!\n")
 			select {
-			case <-chap.SelectableQuit():
+			case <-svr.SelectableQuit():
 			case <-time.After(200 * time.Millisecond):
 				fmt.Printf("a lazy one!\n")
 			}
@@ -26,12 +27,13 @@ func ExampleWow() {
 }
 
 func ExampleWowCancel() {
-	sup.NewSupervisor(func(svr *sup.Supervisor) {
-		wit := svr.Spawn(func(chap sup.Chaperon) {
-			fmt.Printf("whee, i'm an actor!\n")
+	out := os.Stdout
+	sup.NewRootSupervisor(func(svr sup.Supervisor) {
+		wit := svr.NewSupervisor(func(svr sup.Supervisor) {
+			fmt.Fprintf(out, "whee, i'm an actor!\n")
 			select {
-			case <-chap.SelectableQuit():
-				fmt.Printf("cancelled!\n")
+			case <-svr.SelectableQuit():
+				fmt.Fprintf(out, "cancelled!\n")
 			case <-time.After(2 * time.Second):
 			}
 		})
@@ -50,36 +52,34 @@ func ExampleMisbehaved() {
 }
 
 func ExampleTree() {
-	sup.NewSupervisor(func(svr *sup.Supervisor) {
-		fmt.Println("sup  > a")
-		svr.Spawn(func(chap sup.Chaperon) {
-			fmt.Println("task > a.1")
-			sup.NewSupervisor(func(svr *sup.Supervisor) {
-				fmt.Println("sup  > a.1.a")
-				svr.Spawn(func(chap sup.Chaperon) {
-					fmt.Println("task > a.1.a.1")
-					sup.NewSupervisor(func(svr *sup.Supervisor) {
-						fmt.Println("sup  > a.1.a.1.a")
-						svr.Spawn(func(chap sup.Chaperon) {
-							fmt.Println("task > a.1.a.1.a.1")
-						})
-					})
-					fmt.Println("sup  < a.1.a.1.a")
+	sup.NewRootSupervisor(func(svr sup.Supervisor) {
+		fmt.Println("sup > .")
+		svr.NewSupervisor(func(svr sup.Supervisor) {
+			fmt.Println("sup > ..")
+			svr.NewSupervisor(func(svr sup.Supervisor) {
+				fmt.Println("sup > ...")
+				svr.NewSupervisor(func(svr sup.Supervisor) {
+					fmt.Println("sup > ....")
+					svr.NewSupervisor(func(svr sup.Supervisor) {
+						fmt.Println("sup > .....")
+						svr.NewSupervisor(func(svr sup.Supervisor) {
+							fmt.Println("sup > ......")
+						}).Wait()
+						fmt.Println("sup < .....")
+					}).Wait()
+					fmt.Println("sup < ....")
 				})
 			})
-			fmt.Println("sup  < a.1.a")
 		})
 	})
-	fmt.Println("sup  < a")
 
 	// Output:
-	// sup  > a
-	// task > a.1
-	// sup  > a.1.a
-	// task > a.1.a.1
-	// sup  > a.1.a.1.a
-	// task > a.1.a.1.a.1
-	// sup  < a.1.a.1.a
-	// sup  < a.1.a
-	// sup  < a
+	// sup > .
+	// sup > ..
+	// sup > ...
+	// sup > ....
+	// sup > .....
+	// sup > ......
+	// sup < .....
+	// sup < ....
 }

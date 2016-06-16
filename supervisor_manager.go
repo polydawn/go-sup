@@ -7,7 +7,7 @@ package sup
 	is in charge of operations like collecting child status, and is
 	purely internal so it can reliably handle its own blocking behavior.
 */
-func (svr *Supervisor) supmgr_actor() {
+func (svr *supervisor) supmgr_actor() {
 	stepFn := svr.supmgr_stepAccepting
 	for {
 		if stepFn == nil {
@@ -29,32 +29,28 @@ func (svr *Supervisor) supmgr_actor() {
 */
 type supmgr_step func() supmgr_step
 
-func (svr *Supervisor) supmgr_stepAccepting() supmgr_step {
+func (svr *supervisor) supmgr_stepAccepting() supmgr_step {
 	select {
 	case reqSpawn := <-svr.ctrlChan_spawn:
-		ctrlr := newController()
-		svr.wards[ctrlr] = ctrlr
-		ctrlr.doneLatch.WaitSelectably(svr.childBellcord)
-		go func() {
-			defer ctrlr.doneLatch.Trigger()
-			reqSpawn.fn(ctrlr)
-		}()
-		reqSpawn.ret <- ctrlr
+		child, wit := newSupervisor(reqSpawn.director)     // spawn new supervisor
+		svr.wards[wit] = child                             // remember it as our child
+		child.latch_done.WaitSelectably(svr.childBellcord) // notify ourselves when it's done
+		reqSpawn.ret <- wit                                // return a witness to the caller
 		return svr.supmgr_stepAccepting
 
 	case childDone := <-svr.childBellcord:
-		delete(svr.wards, childDone.(*controller))
+		delete(svr.wards, childDone.(Witness))
 		return svr.supmgr_stepAccepting
 
 	case <-svr.ctrlChan_winddown:
 		return svr.supmgr_stepWinddown
 
-	case <-svr.ctrlChan_quit:
+	case <-svr.ctrlChan_quit.Selectable():
 		return svr.supmgr_stepQuitting
 	}
 }
 
-func (svr *Supervisor) supmgr_stepWinddown() supmgr_step {
+func (svr *supervisor) supmgr_stepWinddown() supmgr_step {
 	if len(svr.wards) == 0 {
 		return svr.supmgr_stepTerminated
 	}
@@ -63,23 +59,33 @@ func (svr *Supervisor) supmgr_stepWinddown() supmgr_step {
 		panic("supervisor already winding down") // TODO return a witness with an insta error instead?
 		return svr.supmgr_stepWinddown
 	case childDone := <-svr.childBellcord:
-		delete(svr.wards, childDone.(*controller))
+		delete(svr.wards, childDone.(Witness))
 		return svr.supmgr_stepWinddown
 	case <-svr.ctrlChan_winddown:
 		panic("go-sup bug, winddown transition cannot occur twice")
-	case <-svr.ctrlChan_quit:
+	case <-svr.ctrlChan_quit.Selectable():
 		panic("go-sup bug, cannot transition winddown->quitting")
 	}
 }
 
-func (svr *Supervisor) supmgr_stepQuitting() supmgr_step {
+func (svr *supervisor) supmgr_stepQuitting() supmgr_step {
+	if len(svr.wards) == 0 {
+		return svr.supmgr_stepTerminated
+	}
 	for wit, _ := range svr.wards {
 		wit.Cancel()
 	}
-	return svr.supmgr_stepWinddown
+	select {
+	case _ = <-svr.ctrlChan_spawn:
+		panic("supervisor already winding down") // TODO return a witness with an insta error instead?
+		return svr.supmgr_stepQuitting
+	case childDone := <-svr.childBellcord:
+		delete(svr.wards, childDone.(Witness))
+		return svr.supmgr_stepQuitting
+	}
 }
 
-func (svr *Supervisor) supmgr_stepTerminated() supmgr_step {
+func (svr *supervisor) supmgr_stepTerminated() supmgr_step {
 	// can we finally stop selecting?
 	// ideally other people shouldn've have *any* writable channels into us
 	//  that they could possibly block on at this point.

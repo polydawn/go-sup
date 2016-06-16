@@ -4,10 +4,13 @@ import (
 	"sync/atomic"
 )
 
-type none struct{}
+type Fuse interface {
+	Fire()
+	Selectable() <-chan struct{}
+}
 
 type fuse struct {
-	ch chan none
+	ch chan struct{}
 	// single CAS field instead of sync.Once or even sync.Mutex, because
 	//  we have a very simple application and need precisely nothing more.
 	// a defer tacks on about 120ns on a scale where our entire purpose
@@ -16,7 +19,7 @@ type fuse struct {
 }
 
 func NewFuse() *fuse {
-	return &fuse{ch: make(chan none)}
+	return &fuse{ch: make(chan struct{})}
 }
 
 func (f *fuse) Fire() {
@@ -27,6 +30,6 @@ func (f *fuse) Fire() {
 	return
 }
 
-func (f *fuse) Selectable() <-chan none {
+func (f *fuse) Selectable() <-chan struct{} {
 	return f.ch
 }

@@ -35,11 +35,11 @@ func logResults(results []string) {
 func TestSupervisorCrashcancels(t *testing.T) {
 	Convey("supervisors that crash should have children cancelled", t, FailureContinues, func() {
 		blackbox := newBlackbox()
-		NewSupervisor(func(svr *Supervisor) {
+		NewRootSupervisor(func(svr Supervisor) {
 			blackbox <- "supervisor control started"
-			svr.Spawn(func(chap Chaperon) {
+			svr.NewSupervisor(func(svr Supervisor) {
 				blackbox <- "child proc started"
-				<-chap.SelectableQuit()
+				<-svr.SelectableQuit()
 				blackbox <- "child proc recieved quit"
 			})
 			blackbox <- "supervisor control about to panic"

@@ -9,7 +9,7 @@ import (
 )
 
 func Main(stdin io.Reader, stderr io.Writer) {
-	sup.NewSupervisor(func(svr *sup.Supervisor) {
+	sup.NewRootSupervisor(func(svr sup.Supervisor) {
 		// I'm a very lazy controller, and I mostly delegate work to others.
 		// I don't actually even wake up if something goes wrong!
 		// I assume things are going according to plan unless something
@@ -44,7 +44,7 @@ func Main(stdin io.Reader, stderr io.Writer) {
 			thePit:   stdin,
 			slagPipe: slagPipe,
 		}
-		minePitWitness := svr.Spawn(minePit.Run)
+		minePitWitness := svr.NewSupervisor(minePit.Run)
 		minePitWitness.Cancel()
 
 		oreWasher := &OreWashingFacility{
@@ -53,7 +53,7 @@ func Main(stdin io.Reader, stderr io.Writer) {
 			tinHopper:    make(chan OreTin),
 			zincHopper:   make(chan OreZinc),
 		}
-		oreWasherWitness := svr.Spawn(oreWasher.Run)
+		oreWasherWitness := svr.NewSupervisor(oreWasher.Run)
 		oreWasherWitness.Cancel()
 
 		fmt.Fprintf(stderr, "Owner: leaving for cayman\n")
@@ -79,7 +79,7 @@ type MinePits struct {
 	slagPipe chan<- Slag
 }
 
-func (mp *MinePits) Run(chap sup.Chaperon) {
+func (mp *MinePits) Run(svr sup.Supervisor) {
 	scanner := bufio.NewScanner(mp.thePit)
 	scanner.Split(bufio.ScanWords)
 	for {
@@ -91,9 +91,9 @@ func (mp *MinePits) Run(chap sup.Chaperon) {
 			// careful.  you have to put nb/cancellable selects for each send, too.
 			select {
 			case mp.slagPipe <- Slag(scanner.Text()):
-			case <-chap.SelectableQuit():
+			case <-svr.SelectableQuit():
 			}
-		case <-chap.SelectableQuit():
+		case <-svr.SelectableQuit():
 			return
 		}
 	}
@@ -106,18 +106,15 @@ type OreWashingFacility struct {
 	zincHopper   chan<- OreZinc
 }
 
-func (owf *OreWashingFacility) Run(chap sup.Chaperon) {
+func (owf *OreWashingFacility) Run(svr sup.Supervisor) {
 	// Ore washing is a slow process, and sometimes a batch takes quite
 	//  some time; this can strike fairly randomly, so we run a bunch
 	//  of processing separately to even things out.
 	// That means *we're* a supervisor for all those parallel processors.
-	sup.NewSupervisor(func(svr *sup.Supervisor) {
-		// FIXME : lost in the gap here: quits don't propagate down.
-		// (neither do a lot of things make it back up.)
-		// kek of keks: `NewSupervisor` is blocking.  which means you can't interrupt it.  this... is clearly a problem.
+	svr.NewSupervisor(func(svr sup.Supervisor) {
 		var children []sup.Witness
 		for n := 0; n < 4; n++ {
-			wit := svr.Spawn(func(chap sup.Chaperon) {
+			wit := svr.NewSupervisor(func(svr sup.Supervisor) {
 				for {
 					select {
 					case slag := <-owf.slagPipe:
@@ -128,22 +125,22 @@ func (owf *OreWashingFacility) Run(chap sup.Chaperon) {
 						case "copper":
 							select {
 							case owf.copperHopper <- OreCopper(slag):
-							case <-chap.SelectableQuit():
+							case <-svr.SelectableQuit():
 							}
 						case "tin":
 							select {
 							case owf.tinHopper <- OreTin(slag):
-							case <-chap.SelectableQuit():
+							case <-svr.SelectableQuit():
 							}
 						case "zinc":
 							select {
 							case owf.zincHopper <- OreZinc(slag):
-							case <-chap.SelectableQuit():
+							case <-svr.SelectableQuit():
 							}
 						default:
 							panic("unknown ore type, cannot sort")
 						}
-					case <-chap.SelectableQuit():
+					case <-svr.SelectableQuit():
 						return
 					}
 				}
@@ -151,7 +148,7 @@ func (owf *OreWashingFacility) Run(chap sup.Chaperon) {
 			children = append(children, wit)
 		}
 		// FIXME : manual quit propagation.  go-sup should do this for you.
-		<-chap.SelectableQuit()
+		<-svr.SelectableQuit()
 		for _, wit := range children {
 			wit.Cancel()
 		}

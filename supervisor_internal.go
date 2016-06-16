@@ -1,6 +1,8 @@
 package sup
 
 import (
+	"fmt"
+
 	"go.polydawn.net/go-sup/latch"
 )
 
@@ -12,6 +14,7 @@ type supervisor struct {
 
 	wards map[Witness]*supervisor
 
+	err        error
 	latch_done latch.Latch // used to communicate that the public New method can return
 }
 
@@ -62,24 +65,33 @@ func (svr *supervisor) SelectableQuit() <-chan struct{} {
 */
 func (svr *supervisor) runDirector(director Director) {
 	defer func() {
-		err := recover()
-		// no error is the easy route: it's over.  wind'r down.
-		if err == nil {
+		rcvr := recover()
+
+		// No error is the easy route: it's over.  wind'r down; nothing else special.
+		if rcvr == nil {
 			svr.ctrlChan_winddown <- beep{}
 			return
 		}
-		// if there was an error, every child should be cancelled automatically,
-		//  because apparently their adult supervison has declared incompetence.
-		svr.ctrlChan_quit.Fire()
-		// TODO It also needs somewhere to boil out itself.  And we kinda left that behind, somehow.  :(
 
-		// ... Is there something we should do to boil out errors for children that are clearly not being witnessed by the controller that spawned them?
-		// ..... Probably?
-		// ........ Does that mean we should actually make that *normal*, and you have to intercept explicitly if you want to handle it better?
-		//    You can't really do that very well.  It's hard to force the controller to panic.  (This is the interruption-impossibility limit, in fact.)
-		//     But we could still certainly push errors *up* by default, so the next level higher supervisory code can react promptly (and then
-		//      if your process that didn't handle it wants to be the badly behaved non-cancel-compliant one when that parent shuts down, that's
-		//      fine/inevitable, and it'll be correctly reported as such (well, if we can build watchdogs that good, anyway, which is still in the "hope" phase).
+		// FIXME this crap has to be sent to the secretary too or that'd be a race
+
+		// If you panicked with a non-error type, you're a troll.
+		var err error
+		if cast, ok := rcvr.(error); ok {
+			err = cast
+		} else {
+			err = fmt.Errorf("recovered: %T: %s", rcvr, rcvr)
+		}
+
+		// Save the error.  It should be checked by the parent (or, if it's not
+		//  acknowledged, the parent's secretary will continue to propagate it up).
+		svr.err = err
+
+		// If there was an error, every child should be cancelled automatically,
+		//  because apparently their adult supervison has declared incompetence.
+		//  (Of course, this just puts the secretary in "quitting" state; and this
+		//  supervisor's Witness still won't return until those wrap-ups are all gathered).
+		svr.ctrlChan_quit.Fire()
 	}()
 
 	director(svr)

@@ -24,6 +24,15 @@ type Witness interface {
 	// Block until this witness is done.
 	Wait()
 
+	// Returns the error, if the task died from a panic.
+	// `Wait()`s first.
+	Err() error
+
+	// Acknowledge an error as handled, so that it won't be reported to parents.
+	// It's inadvisable to call this outside of the `Director` that spawned the task,
+	// since it directly impacts the way errors propagate up its supervisor tree.
+	Handled()
+
 	// Send a cancellation signal to the witnessed system.
 	Cancel()
 }

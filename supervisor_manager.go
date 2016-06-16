@@ -1,5 +1,9 @@
 package sup
 
+import (
+	"fmt"
+)
+
 /*
 	The maintainence actor.
 
@@ -39,7 +43,7 @@ func (svr *supervisor) supmgr_stepAccepting() supmgr_step {
 		return svr.supmgr_stepAccepting
 
 	case childDone := <-svr.childBellcord:
-		delete(svr.wards, childDone.(Witness))
+		svr.supmgr_gatherChild(childDone.(*witness))
 		return svr.supmgr_stepAccepting
 
 	case <-svr.ctrlChan_winddown:
@@ -55,11 +59,11 @@ func (svr *supervisor) supmgr_stepWinddown() supmgr_step {
 		return svr.supmgr_stepTerminated
 	}
 	select {
-	case _ = <-svr.ctrlChan_spawn:
-		panic("supervisor already winding down") // TODO return a witness with an insta error instead?
+	case reqSpawn := <-svr.ctrlChan_spawn:
+		reqSpawn.ret <- &witnessThunk{err: fmt.Errorf("supervisor already winding down")}
 		return svr.supmgr_stepWinddown
 	case childDone := <-svr.childBellcord:
-		delete(svr.wards, childDone.(Witness))
+		svr.supmgr_gatherChild(childDone.(*witness))
 		return svr.supmgr_stepWinddown
 	case <-svr.ctrlChan_winddown:
 		panic("go-sup bug, winddown transition cannot occur twice")
@@ -76,8 +80,8 @@ func (svr *supervisor) supmgr_stepQuitting() supmgr_step {
 		wit.Cancel()
 	}
 	select {
-	case _ = <-svr.ctrlChan_spawn:
-		panic("supervisor already winding down") // TODO return a witness with an insta error instead?
+	case reqSpawn := <-svr.ctrlChan_spawn:
+		reqSpawn.ret <- &witnessThunk{err: fmt.Errorf("supervisor already winding down")}
 		return svr.supmgr_stepQuitting
 	case childDone := <-svr.childBellcord:
 		delete(svr.wards, childDone.(Witness))
@@ -91,4 +95,16 @@ func (svr *supervisor) supmgr_stepTerminated() supmgr_step {
 	//  that they could possibly block on at this point.
 	svr.latch_done.Trigger()
 	return nil
+}
+
+func (svr *supervisor) supmgr_gatherChild(childDone *witness) {
+	delete(svr.wards, childDone)
+
+	// TODO what *do* we do when a child panicked to death?
+	// keep a bool in the witness itself and add an explicit method for acknowledging errors?
+	// if the parent exits and hasn't ack'd, then their witness returns the child's error to the grandparent?
+	// yes, at some point someone has to actually look at it and ack it.  or we bubble all the way out.  sounds right.
+
+	// we have to keep a pool of children which exited with errors.
+	// and then review it when we're in supmgr_stepTerminated, right before we trigger latch_done.
 }

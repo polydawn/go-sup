@@ -111,48 +111,43 @@ func (owf *OreWashingFacility) Run(svr sup.Supervisor) {
 	//  some time; this can strike fairly randomly, so we run a bunch
 	//  of processing separately to even things out.
 	// That means *we're* a supervisor for all those parallel processors.
-	svr.NewSupervisor(func(svr sup.Supervisor) {
-		var children []sup.Witness
-		for n := 0; n < 4; n++ {
-			wit := svr.NewSupervisor(func(svr sup.Supervisor) {
-				for {
-					select {
-					case slag := <-owf.slagPipe:
-						// this looks a little squishy, but keep in mind
-						//  the level of contrivance here.  it's quite unlikely
-						//   that one would ever write a real typed fanout so trivial as this.
-						switch slag {
-						case "copper":
-							select {
-							case owf.copperHopper <- OreCopper(slag):
-							case <-svr.SelectableQuit():
-							}
-						case "tin":
-							select {
-							case owf.tinHopper <- OreTin(slag):
-							case <-svr.SelectableQuit():
-							}
-						case "zinc":
-							select {
-							case owf.zincHopper <- OreZinc(slag):
-							case <-svr.SelectableQuit():
-							}
-						default:
-							panic("unknown ore type, cannot sort")
-						}
-					case <-svr.SelectableQuit():
-						return
-					}
+	var children []sup.Witness
+	for n := 0; n < 4; n++ {
+		wit := svr.NewSupervisor(owf.runSingleStation)
+		children = append(children, wit)
+	}
+}
+
+func (owf *OreWashingFacility) runSingleStation(svr sup.Supervisor) {
+	for {
+		select {
+		case slag := <-owf.slagPipe:
+			// this looks a little squishy, but keep in mind
+			//  the level of contrivance here.  it's quite unlikely
+			//   that one would ever write a real typed fanout so trivial as this.
+			switch slag {
+			case "copper":
+				select {
+				case owf.copperHopper <- OreCopper(slag):
+				case <-svr.SelectableQuit():
 				}
-			})
-			children = append(children, wit)
+			case "tin":
+				select {
+				case owf.tinHopper <- OreTin(slag):
+				case <-svr.SelectableQuit():
+				}
+			case "zinc":
+				select {
+				case owf.zincHopper <- OreZinc(slag):
+				case <-svr.SelectableQuit():
+				}
+			default:
+				panic("unknown ore type, cannot sort")
+			}
+		case <-svr.SelectableQuit():
+			return
 		}
-		// FIXME : manual quit propagation.  go-sup should do this for you.
-		<-svr.SelectableQuit()
-		for _, wit := range children {
-			wit.Cancel()
-		}
-	})
+	}
 }
 
 type FoundryCoordinator struct {

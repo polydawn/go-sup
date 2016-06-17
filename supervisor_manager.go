@@ -46,19 +46,22 @@ func (svr *supervisor) supmgr_stepAccepting() supmgr_step {
 		svr.supmgr_gatherChild(childDone.(*witness))
 		return svr.supmgr_stepAccepting
 
-	case err := <-svr.ctrlChan_winddown:
-		svr.err = err
-		if err != nil {
-			svr.ctrlChan_quit.Fire() // we'll already make the phase change, but for consistency
-			return svr.supmgr_stepQuitting
-		}
+	case result := <-svr.ctrlChan_winddown:
+		svr.supmgr_gatherDirector(result)
 		return svr.supmgr_stepWinddown
 
 	case <-svr.ctrlChan_quit.Selectable():
+		svr.supmgr_cancelAll()
 		return svr.supmgr_stepQuitting
 	}
 }
 
+/*
+	Winddown is the only state available after the director has returned.
+	We may be in winddown regardless of whether a quit was sent.
+	Winddown loops until all wards have been gathered,
+	then we make the final	transition: to terminated.
+*/
 func (svr *supervisor) supmgr_stepWinddown() supmgr_step {
 	if len(svr.wards) == 0 {
 		return svr.supmgr_stepTerminated
@@ -73,20 +76,25 @@ func (svr *supervisor) supmgr_stepWinddown() supmgr_step {
 	}
 }
 
+/*
+	Quitting is a state where we've been told to quit,
+	so we're denying any requests to spawn more children,
+	but the director still hasn't returned, so we're stuck waiting for that,
+	and gathering other events same as winddown until then.
+*/
 func (svr *supervisor) supmgr_stepQuitting() supmgr_step {
-	if len(svr.wards) == 0 {
-		return svr.supmgr_stepTerminated
-	}
-	for wit, _ := range svr.wards {
-		wit.Cancel()
-	}
 	select {
 	case reqSpawn := <-svr.ctrlChan_spawn:
 		reqSpawn.ret <- &witnessThunk{err: fmt.Errorf("supervisor already winding down")}
 		return svr.supmgr_stepQuitting
+
 	case childDone := <-svr.childBellcord:
-		delete(svr.wards, childDone.(Witness))
+		svr.supmgr_gatherChild(childDone.(*witness))
 		return svr.supmgr_stepQuitting
+
+	case result := <-svr.ctrlChan_winddown:
+		svr.supmgr_gatherDirector(result)
+		return svr.supmgr_stepWinddown
 	}
 }
 
@@ -117,6 +125,16 @@ func (svr *supervisor) supmgr_stepTerminated() supmgr_step {
 	return nil
 }
 
+func (svr *supervisor) supmgr_gatherDirector(result error) {
+	svr.err = result
+	if result != nil {
+		// cancel all children.
+		svr.supmgr_cancelAll()
+		// we're about to jump to winddown regardless, but for consistency
+		svr.ctrlChan_quit.Fire()
+	}
+}
+
 func (svr *supervisor) supmgr_gatherChild(childDone *witness) {
 	delete(svr.wards, childDone)
 
@@ -126,5 +144,11 @@ func (svr *supervisor) supmgr_gatherChild(childDone *witness) {
 	//  then we'll continue to propagate it up.
 	if childDone.Err() != nil {
 		svr.tombstones[childDone] = beep{}
+	}
+}
+
+func (svr *supervisor) supmgr_cancelAll() {
+	for wit, _ := range svr.wards {
+		wit.Cancel()
 	}
 }

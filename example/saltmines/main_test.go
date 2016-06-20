@@ -3,6 +3,7 @@ package saltmines
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -25,7 +26,7 @@ import (
 func ExampleSaltmines() {
 	defer fmt.Printf("Example: complete!")
 	input := bytes.NewBufferString("copper copper")
-	Main(input, os.Stdout)
+	Main(input, io.MultiWriter(os.Stdout, os.Stderr))
 
 	// Output:
 	// Owner: hello

@@ -8,20 +8,6 @@ import (
 	"go.polydawn.net/go-sup/latch"
 )
 
-type supervisor struct {
-	ctrlChan_quit latch.Fuse // typically a copy of the one from the manager.  the supervisor is all receiving end.
-}
-
-func (super *supervisor) QuitCh() <-chan struct{} {
-	return super.ctrlChan_quit.Selectable()
-}
-
-func (super *supervisor) Quit() bool {
-	return super.ctrlChan_quit.IsBlown()
-}
-
-////
-
 type manager struct {
 	reportingTo   Supervisor
 	ctrlChan_quit latch.Fuse
@@ -30,6 +16,16 @@ type manager struct {
 	stop    bool
 	wards   map[Writ]func() // supervisor -> cancelfunc
 	results chan (error)
+}
+
+func newManager(reportingTo Supervisor) Manager {
+	return &manager{
+		reportingTo:   reportingTo,
+		ctrlChan_quit: latch.NewFuse(),
+
+		wards:   make(map[Writ]func()),
+		results: make(chan error),
+	}
 }
 
 func (mgr *manager) NewTask() Writ {
@@ -97,15 +93,5 @@ func (mgr *manager) Work() {
 			println("mgr halting!!!")
 			return
 		}
-	}
-}
-
-func newManager(reportingTo Supervisor) Manager {
-	return &manager{
-		reportingTo:   reportingTo,
-		ctrlChan_quit: latch.NewFuse(),
-
-		wards:   make(map[Writ]func()),
-		results: make(chan error),
 	}
 }

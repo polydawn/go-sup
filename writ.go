@@ -114,6 +114,8 @@ func (writ *writ) Run(fn Agent) {
 	fn(writ.svr)
 }
 
+//func (writ *writ) step(stepFn func(WritPhase) WritPhase) {}
+
 func (writ *writ) Cancel() {
 	writ.quitFuse.Fire()
 	var terminatedHere bool
@@ -143,4 +145,18 @@ func (writ *writ) Cancel() {
 	if terminatedHere {
 		writ.doneFuse.Fire()
 	}
+}
+
+////
+
+type supervisor struct {
+	ctrlChan_quit latch.Fuse // typically a copy of the one from the manager.  the supervisor is all receiving end.
+}
+
+func (super *supervisor) QuitCh() <-chan struct{} {
+	return super.ctrlChan_quit.Selectable()
+}
+
+func (super *supervisor) Quit() bool {
+	return super.ctrlChan_quit.IsBlown()
 }

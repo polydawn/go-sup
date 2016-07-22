@@ -8,28 +8,12 @@ import (
 	"go.polydawn.net/go-sup/latch"
 )
 
-type Agent func(Supervisor)
-
-////
-
-/*
-	Manufactured when you tell a `Manager` you're about to give it some
-	work to supervise.
-
-	The main reason this type exists at all is so that we can capture the
-	intention to run the agent function immediately, even if the `Run`
-	is kicked to the other side of a new goroutine -- this is necessary
-	for making sure we start every task we intended to!
-	The `Agent` describing the real work to do is given as a parameter to
-	another func to make sure you don't accidentally pass in the agent
-	function and then forget to call the real 'go-do-it' method afterwards.
-*/
-type Writ struct {
+type writ struct {
 	svr       Supervisor
 	afterward func()
 }
 
-func (writ *Writ) Run(fn Agent) {
+func (writ *writ) Run(fn Agent) {
 	if writ.svr == nil {
 		// the manager started winding down before our goroutine really got started;
 		// we have no choice but to quietly pack it in, because there's no one to watch us.
@@ -41,16 +25,15 @@ func (writ *Writ) Run(fn Agent) {
 
 ////
 
-/*
-	The interface workers look up to in order to determine when they can retire.
-*/
-type Supervisor interface {
-	Quit() bool
-	QuitCh() <-chan struct{}
-}
-
 type supervisor struct {
 	ctrlChan_quit latch.Fuse // typically a copy of the one from the manager.  the supervisor is all receiving end.
+}
+
+func newSupervisor() (Supervisor, func()) {
+	svr := &supervisor{
+		ctrlChan_quit: latch.NewFuse(),
+	}
+	return svr, svr.ctrlChan_quit.Fire
 }
 
 func (super *supervisor) QuitCh() <-chan struct{} {
@@ -61,28 +44,7 @@ func (super *supervisor) Quit() bool {
 	return super.ctrlChan_quit.IsBlown()
 }
 
-/*
-	Construct a new mindless supervisor who only knows how to tell agents to quit for the day.
-	Returns the supervisor and the function you call to trigger the quit.
-
-	This mindless supervisor is useful at the root of a management tree, but otherwise
-	you're better off finding someone else to report to.
-*/
-func NewSupervisor() (Supervisor, func()) {
-	svr := &supervisor{
-		ctrlChan_quit: latch.NewFuse(),
-	}
-	return svr, svr.ctrlChan_quit.Fire
-}
-
 ////
-
-type Manager interface {
-	NewTask() *Writ
-	Work()
-	// TODO i do believe you who initialized this thing ought to be able to cancel it as well.
-	// at the same time, no you can't cancel individual supervisors its spawned for agents you've delegated, because wtf is that mate.
-}
 
 type manager struct {
 	reportingTo   Supervisor
@@ -90,14 +52,14 @@ type manager struct {
 
 	mu      sync.Mutex
 	stop    bool
-	wards   map[*Writ]func() // supervisor -> cancelfunc
+	wards   map[Writ]func() // supervisor -> cancelfunc
 	results chan (error)
 }
 
-func (mgr *manager) NewTask() *Writ {
+func (mgr *manager) NewTask() Writ {
 	// Make a new writ to track this upcoming task.
 	svr := &supervisor{mgr.ctrlChan_quit}
-	writ := &Writ{svr: svr}
+	wrt := &writ{svr: svr}
 	// Register it.  Or bail if we have to stop now.
 	if halt := func() bool {
 		mgr.mu.Lock()
@@ -106,22 +68,22 @@ func (mgr *manager) NewTask() *Writ {
 		if mgr.stop {
 			return true
 		}
-		mgr.wards[writ] = svr.ctrlChan_quit.Fire
+		mgr.wards[wrt] = svr.ctrlChan_quit.Fire
 		return false
 	}(); halt {
-		return &Writ{nil, nil}
+		return &writ{nil, nil}
 	}
 
 	// Fill in rest of writ now that we we've decided we're serious.
 	// FIXME this is an insane amount of race, plz stop
-	writ.afterward = func() {
+	wrt.afterward = func() {
 		mgr.mu.Lock()
-		delete(mgr.wards, writ)
+		delete(mgr.wards, wrt)
 		err := coerceToError(recover())
 		mgr.mu.Unlock()
 		mgr.results <- err
 	}
-	return writ
+	return wrt
 }
 
 func (mgr *manager) step() (halt bool) {
@@ -157,12 +119,12 @@ func (mgr *manager) Work() {
 	}
 }
 
-func NewManager(reportingTo Supervisor) Manager {
+func newManager(reportingTo Supervisor) Manager {
 	return &manager{
 		reportingTo:   reportingTo,
 		ctrlChan_quit: latch.NewFuse(),
 
-		wards:   make(map[*Writ]func()),
+		wards:   make(map[Writ]func()),
 		results: make(chan error),
 	}
 }

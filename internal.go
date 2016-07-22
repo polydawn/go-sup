@@ -47,7 +47,7 @@ func (mgr *manager) NewTask() Writ {
 		mgr.wards[wrt] = svr.ctrlChan_quit.Fire
 		return false
 	}(); halt {
-		return &writ{nil, nil, nil, nil} // FIXME not a valid thunk anymore
+		return &writ{nil, 0, nil, nil, nil, nil} // FIXME not a valid thunk anymore
 	}
 
 	// Fill in rest of writ now that we we've decided we're serious.

@@ -6,7 +6,9 @@ import (
 
 type writ struct {
 	name      WritName
-	quitFuse  latch.Fuse
+	phase     WritPhase
+	quitFuse  latch.Fuse // fire this to move to quitting
+	doneFuse  latch.Fuse // we'll fire this when moving to done
 	svr       Supervisor
 	afterward func()
 }
@@ -30,14 +32,26 @@ type writ struct {
 	Note that if you call `Run(fn)` and `Cancel` in parallel, the `fn` may never run.
 
 	If `Run(fn2)` is called a second time, a panic is raised.
-
 */
+type WritPhase int32
+
+const (
+	WritPhase_Invalid WritPhase = iota
+	WritPhase_Issued
+	WritPhase_InUse
+	WritPhase_Quitting
+	WritPhase_Terminal
+	writFlag_Used int32 = 1 << 8
+)
 
 func newRootWrit() Writ {
-	fuse := latch.NewFuse()
+	quitFuse := latch.NewFuse()
 	return &writ{
-		quitFuse:  fuse,
-		svr:       &supervisor{fuse},
+		name:      WritName{},
+		phase:     WritPhase_Issued,
+		quitFuse:  quitFuse,
+		doneFuse:  latch.NewFuse(),
+		svr:       &supervisor{quitFuse},
 		afterward: func() {},
 	}
 }

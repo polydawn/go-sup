@@ -26,29 +26,31 @@ func ExampleWow() {
 		//sup.Funnel().Gather(mgr.DoneCh()).Await()
 	}
 
-	rootSvr, triggerWrapup := sup.NewSupervisor()
-	mgr := sup.NewManager(rootSvr)
-	go mgr.NewTask().Run(salesDirector)
-	go mgr.NewTask().Run(salesDirector)
-	go mgr.NewTask().Run(salesDirector)
-	salesCnt := 0
-	go mgr.NewTask().Run(func(super sup.Supervisor) {
-		for {
-			select {
-			case sale := <-salesFunnel:
-				fmt.Fprintf(os.Stdout, "%s %d!\n", sale, salesCnt)
-				salesCnt++
-				if salesCnt >= 10 {
-					fmt.Fprintf(os.Stderr, "trying to wrap after %s!\n", sale)
-					triggerWrapup()
+	rootWrit := sup.NewWrit()
+	rootWrit.Run(func(super sup.Supervisor) {
+		mgr := sup.NewManager(super)
+		go mgr.NewTask().Run(salesDirector)
+		go mgr.NewTask().Run(salesDirector)
+		go mgr.NewTask().Run(salesDirector)
+		salesCnt := 0
+		go mgr.NewTask().Run(func(super sup.Supervisor) {
+			for {
+				select {
+				case sale := <-salesFunnel:
+					fmt.Fprintf(os.Stdout, "%s %d!\n", sale, salesCnt)
+					salesCnt++
+					if salesCnt >= 10 {
+						fmt.Fprintf(os.Stderr, "trying to wrap after %s!\n", sale)
+						rootWrit.Cancel()
+						return
+					}
+				case <-super.QuitCh():
 					return
 				}
-			case <-super.QuitCh():
-				return
 			}
-		}
+		})
+		mgr.Work()
 	})
-	mgr.Work()
 	go func() { salesFunnel <- "last" }()
 	fmt.Printf("%s!\n", <-salesFunnel)
 

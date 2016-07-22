@@ -8,32 +8,8 @@ import (
 	"go.polydawn.net/go-sup/latch"
 )
 
-type writ struct {
-	svr       Supervisor
-	afterward func()
-}
-
-func (writ *writ) Run(fn Agent) {
-	if writ.svr == nil {
-		// the manager started winding down before our goroutine really got started;
-		// we have no choice but to quietly pack it in, because there's no one to watch us.
-		return
-	}
-	defer writ.afterward()
-	fn(writ.svr)
-}
-
-////
-
 type supervisor struct {
 	ctrlChan_quit latch.Fuse // typically a copy of the one from the manager.  the supervisor is all receiving end.
-}
-
-func newSupervisor() (Supervisor, func()) {
-	svr := &supervisor{
-		ctrlChan_quit: latch.NewFuse(),
-	}
-	return svr, svr.ctrlChan_quit.Fire
 }
 
 func (super *supervisor) QuitCh() <-chan struct{} {
@@ -71,7 +47,7 @@ func (mgr *manager) NewTask() Writ {
 		mgr.wards[wrt] = svr.ctrlChan_quit.Fire
 		return false
 	}(); halt {
-		return &writ{nil, nil}
+		return &writ{nil, nil, nil, nil} // FIXME not a valid thunk anymore
 	}
 
 	// Fill in rest of writ now that we we've decided we're serious.

@@ -38,28 +38,30 @@ func Main(stdin io.Reader, stderr io.Writer) {
 	//  teams tend to be short-lived, but they may ask questions about
 	//  (or sometimes give odd orders to) the other three major operational
 	//  centers of our production pipeline.
-	rootSvr, triggerWrapup := sup.NewSupervisor()
-	mgr := sup.NewManager(rootSvr)
+	rootWrit := sup.NewWrit()
+	rootWrit.Run(func(super sup.Supervisor) {
+		mgr := sup.NewManager(super)
 
-	slagPipe := make(chan Slag)
-	minePit := &MinePits{
-		thePit:   stdin,
-		slagPipe: slagPipe,
-	}
-	go mgr.NewTask().Run(minePit.Run)
-	//minePitWitness.Cancel()
+		slagPipe := make(chan Slag)
+		minePit := &MinePits{
+			thePit:   stdin,
+			slagPipe: slagPipe,
+		}
+		go mgr.NewTask().Run(minePit.Run)
+		//minePitWitness.Cancel()
 
-	oreWasher := &OreWashingFacility{
-		slagPipe:     slagPipe,
-		copperHopper: make(chan OreCopper),
-		tinHopper:    make(chan OreTin),
-		zincHopper:   make(chan OreZinc),
-	}
-	go mgr.NewTask().Run(oreWasher.Run)
-	//oreWasherWitness.Cancel()
+		oreWasher := &OreWashingFacility{
+			slagPipe:     slagPipe,
+			copperHopper: make(chan OreCopper),
+			tinHopper:    make(chan OreTin),
+			zincHopper:   make(chan OreZinc),
+		}
+		go mgr.NewTask().Run(oreWasher.Run)
+		//oreWasherWitness.Cancel()
 
-	triggerWrapup()
-	mgr.Work()
+		rootWrit.Cancel()
+		mgr.Work()
+	})
 }
 
 type (

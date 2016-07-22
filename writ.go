@@ -26,15 +26,18 @@ type writ struct {
 
 	When first created, the phase is 'Issued'.
 
-	When `Run(fn)` is called, the phase becomes 'InUse'.
+	When `Run(fn)` is called, if the phase is 'Issued', the phase becomes 'InUse';
+	if the phase is 'Terminal', it stays 'Terminal' and `fn` will be ignored.
 
 	When `fn` returns, the phase becomes 'Terminal'.
 
-	When `Cancel` is called, the phase is jumped to `Quitting`.
+	When `Cancel` is called, the phase is jumped to 'Quitting' if `fn` is still running;
+	the phase remains 'Terminal' if `fn` already returned, or if we got there via a previous `Cancel`;
+	the phase jumps directly to 'Terminal' if `Run(fn)` has not yet been called.
 
 	Note that if you call `Run(fn)` and `Cancel` in parallel, the `fn` may never run.
 
-	If `Run(fn2)` is called a second time, a panic is raised.
+	If `Run(fn2)` is called a second time for any reason, a panic is raised.
 */
 type WritPhase int32
 
@@ -68,18 +71,22 @@ func (writ *writ) Run(fn Agent) {
 		if ph&writFlag_Used != 0 {
 			panic("it is not valid to use a writ more than once")
 		}
+		var next WritPhase
 		switch ph {
 		case WritPhase_Issued:
 			fly = true
+			next = WritPhase_InUse
 		case WritPhase_Terminal:
 			fly = false
+			next = WritPhase_Terminal
 		case WritPhase_InUse, WritPhase_Quitting:
 			// these statespaces should be unreachable because `writFlag_Used` already covers them.
 			fallthrough
 		default:
 			panic(fmt.Sprintf("invalid writ state %d", ph))
 		}
-		if atomic.CompareAndSwapInt32(&writ.phase, int32(ph), int32(WritPhase_InUse)) {
+		next = next | writFlag_Used
+		if atomic.CompareAndSwapInt32(&writ.phase, int32(ph), int32(next)) {
 			break
 		}
 	}
@@ -94,4 +101,22 @@ func (writ *writ) Run(fn Agent) {
 
 func (writ *writ) Cancel() {
 	writ.quitFuse.Fire()
+	for {
+		ph := WritPhase(atomic.LoadInt32(&writ.phase))
+		var next WritPhase
+		switch ph {
+		case WritPhase_Issued:
+			next = WritPhase_Terminal
+		case WritPhase_InUse:
+			next = WritPhase_Quitting
+		case WritPhase_Terminal, WritPhase_Quitting:
+			return // we're already wrapping up or full halted: great.
+		default:
+			panic(fmt.Sprintf("invalid writ state %d", ph))
+		}
+		next = next | (ph & writFlag_Used)
+		if atomic.CompareAndSwapInt32(&writ.phase, int32(ph), int32(next)) {
+			break
+		}
+	}
 }

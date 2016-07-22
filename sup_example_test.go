@@ -19,7 +19,7 @@ func ExampleWow() {
 			}
 		})
 		wit.Wait()
-	})
+	}).Wait()
 
 	// Output:
 	// whee, i'm an actor!
@@ -39,7 +39,7 @@ func ExampleWowCancel() {
 		})
 		wit.Cancel()
 		wit.Wait()
-	})
+	}).Wait()
 
 	// Output:
 	// whee, i'm an actor!
@@ -71,7 +71,7 @@ func ExampleTree() {
 				})
 			})
 		})
-	})
+	}).Wait()
 
 	// Output:
 	// sup > .

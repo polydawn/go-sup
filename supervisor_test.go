@@ -44,7 +44,7 @@ func TestSupervisorCrashcancels(t *testing.T) {
 			})
 			blackbox <- "supervisor control about to panic"
 			panic("whoa")
-		})
+		}).Wait()
 		results := blackbox.drain()
 		logResults(results)
 		So(results, ShouldHaveLength, 4)

@@ -57,7 +57,7 @@ func Main(stdin io.Reader, stderr io.Writer) {
 		oreWasherWitness.Cancel()
 
 		fmt.Fprintf(stderr, "Owner: leaving for cayman\n")
-	})
+	}).Wait()
 }
 
 type (

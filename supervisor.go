@@ -78,16 +78,20 @@ type Director func(Supervisor)
 type Zonk struct{}
 
 /*
-	Start a new supervisor.  Put the given function in charge of it.
-	When the controller function returns, the supervisor will start
-	winding down (it won't accept any new tasks to be launched), and
-	when all outstanding tasks have completed, the supervisor will become
-	done.
+	Start a new supervisor, putting the given `Director` func in charge of it.
 
-	This method blocks for the duration -- it will return when the
-	supervisor has become done.
+	You must call `Wait()` on the returned `Witness`.
+	(Normally, this is optional with `go-sup` because supervisors are designed
+	to make sure sure all their children have returned.
+	The explicit wait is required with the root supervisor, however, because
+	there's no one else to turn to!)
+
+	You may want to wire up external inputs to trigger `Cancel()` on the returned witness.
+	Using `os/signal.Notify` to make your program react to Ctrl-C (e.g. SIGINT)
+	with a graceful shutdown by cancelling the entire supervisor tree is often a great idea,
+	for example.
 */
-func NewRootSupervisor(director Director) {
+func NewRootSupervisor(director Director) Witness {
 	_, wit := newSupervisor(director)
-	wit.Wait()
+	return wit
 }

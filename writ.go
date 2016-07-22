@@ -95,6 +95,20 @@ func (writ *writ) Run(fn Agent) {
 		//  we have no choice but to quietly pack it in.
 		return
 	}
+	defer func() {
+		for {
+			ph := WritPhase(atomic.LoadInt32(&writ.phase))
+			// transition here is not variable, but filter for sanity check
+			switch ph & ^writFlag_Used {
+			case WritPhase_InUse, WritPhase_Quitting:
+			default:
+				panic(fmt.Sprintf("invalid writ state %d", ph))
+			}
+			if atomic.CompareAndSwapInt32(&writ.phase, int32(ph), int32(WritPhase_Terminal|writFlag_Used)) {
+				break
+			}
+		}
+	}()
 	defer writ.afterward()
 	fn(writ.svr)
 }
@@ -104,7 +118,7 @@ func (writ *writ) Cancel() {
 	for {
 		ph := WritPhase(atomic.LoadInt32(&writ.phase))
 		var next WritPhase
-		switch ph {
+		switch ph & ^writFlag_Used {
 		case WritPhase_Issued:
 			next = WritPhase_Terminal
 		case WritPhase_InUse:

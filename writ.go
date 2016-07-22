@@ -108,6 +108,7 @@ func (writ *writ) Run(fn Agent) {
 				break
 			}
 		}
+		writ.doneFuse.Fire()
 	}()
 	defer writ.afterward()
 	fn(writ.svr)
@@ -115,16 +116,22 @@ func (writ *writ) Run(fn Agent) {
 
 func (writ *writ) Cancel() {
 	writ.quitFuse.Fire()
+	var terminatedHere bool
 	for {
+		terminatedHere = false
 		ph := WritPhase(atomic.LoadInt32(&writ.phase))
 		var next WritPhase
 		switch ph & ^writFlag_Used {
 		case WritPhase_Issued:
 			next = WritPhase_Terminal
+			// there is no Run defer, so we fire the done fuse ourselves
+			terminatedHere = true
 		case WritPhase_InUse:
 			next = WritPhase_Quitting
-		case WritPhase_Terminal, WritPhase_Quitting:
-			return // we're already wrapping up or full halted: great.
+		case WritPhase_Quitting:
+			return // we're already quitting: the Run defer is responsible for the step to terminal.
+		case WritPhase_Terminal:
+			return // we're already full halted: great.
 		default:
 			panic(fmt.Sprintf("invalid writ state %d", ph))
 		}
@@ -132,5 +139,8 @@ func (writ *writ) Cancel() {
 		if atomic.CompareAndSwapInt32(&writ.phase, int32(ph), int32(next)) {
 			break
 		}
+	}
+	if terminatedHere {
+		writ.doneFuse.Fire()
 	}
 }

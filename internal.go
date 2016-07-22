@@ -37,8 +37,9 @@ func (mgr *manager) NewTask() Writ {
 	svr := &supervisor{mgr.ctrlChan_quit}
 	wrt := &writ{
 		// FIXME partial initialization
-		phase: int32(WritPhase_Issued),
-		svr:   svr,
+		phase:    int32(WritPhase_Issued),
+		doneFuse: latch.NewFuse(),
+		svr:      svr,
 	}
 	// Register it.  Or bail if we have to stop now.
 	if halt := func() bool {

@@ -1,12 +1,15 @@
 package sup
 
 import (
+	"fmt"
+	"sync/atomic"
+
 	"go.polydawn.net/go-sup/latch"
 )
 
 type writ struct {
 	name      WritName
-	phase     WritPhase
+	phase     int32
 	quitFuse  latch.Fuse // fire this to move to quitting
 	doneFuse  latch.Fuse // we'll fire this when moving to done
 	svr       Supervisor
@@ -41,14 +44,15 @@ const (
 	WritPhase_InUse
 	WritPhase_Quitting
 	WritPhase_Terminal
-	writFlag_Used int32 = 1 << 8
+
+	writFlag_Used WritPhase = 1 << 8
 )
 
 func newRootWrit() Writ {
 	quitFuse := latch.NewFuse()
 	return &writ{
 		name:      WritName{},
-		phase:     WritPhase_Issued,
+		phase:     int32(WritPhase_Issued),
 		quitFuse:  quitFuse,
 		doneFuse:  latch.NewFuse(),
 		svr:       &supervisor{quitFuse},
@@ -57,9 +61,31 @@ func newRootWrit() Writ {
 }
 
 func (writ *writ) Run(fn Agent) {
-	if writ.svr == nil {
-		// the manager started winding down before our goroutine really got started;
-		// we have no choice but to quietly pack it in, because there's no one to watch us.
+	var fly bool
+	for {
+		fly = false
+		ph := WritPhase(atomic.LoadInt32(&writ.phase))
+		if ph&writFlag_Used != 0 {
+			panic("it is not valid to use a writ more than once")
+		}
+		switch ph {
+		case WritPhase_Issued:
+			fly = true
+		case WritPhase_Terminal:
+			fly = false
+		case WritPhase_InUse, WritPhase_Quitting:
+			// these statespaces should be unreachable because `writFlag_Used` already covers them.
+			fallthrough
+		default:
+			panic(fmt.Sprintf("invalid writ state %d", ph))
+		}
+		if atomic.CompareAndSwapInt32(&writ.phase, int32(ph), int32(WritPhase_InUse)) {
+			break
+		}
+	}
+	if !fly {
+		// the writ was cancelled before our goroutine really got started;
+		//  we have no choice but to quietly pack it in.
 		return
 	}
 	defer writ.afterward()

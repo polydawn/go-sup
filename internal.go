@@ -35,7 +35,11 @@ type manager struct {
 func (mgr *manager) NewTask() Writ {
 	// Make a new writ to track this upcoming task.
 	svr := &supervisor{mgr.ctrlChan_quit}
-	wrt := &writ{svr: svr}
+	wrt := &writ{
+		// FIXME partial initialization
+		phase: int32(WritPhase_Issued),
+		svr:   svr,
+	}
 	// Register it.  Or bail if we have to stop now.
 	if halt := func() bool {
 		mgr.mu.Lock()

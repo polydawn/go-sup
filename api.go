@@ -11,6 +11,7 @@ type Agent func(Supervisor)
 type Supervisor interface {
 	Quit() bool
 	QuitCh() <-chan struct{}
+	// Name() string // this seems like it should go here because any Agent should be able to ask who it is
 }
 
 /*

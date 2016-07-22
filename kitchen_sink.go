@@ -12,6 +12,38 @@ type Agent func(Supervisor)
 
 ////
 
+/*
+	Manufactured when you tell a `Manager` you're about to give it some
+	work to supervise.
+
+	The main reason this type exists at all is so that we can capture the
+	intention to run the agent function immediately, even if the `Run`
+	is kicked to the other side of a new goroutine -- this is necessary
+	for making sure we start every task we intended to!
+	The `Agent` describing the real work to do is given as a parameter to
+	another func to make sure you don't accidentally pass in the agent
+	function and then forget to call the real 'go-do-it' method afterwards.
+*/
+type Writ struct {
+	svr       Supervisor
+	afterward func()
+}
+
+func (writ *Writ) Run(fn Agent) {
+	if writ.svr == nil {
+		// the manager started winding down before our goroutine really got started;
+		// we have no choice but to quietly pack it in, because there's no one to watch us.
+		return
+	}
+	defer writ.afterward()
+	fn(writ.svr)
+}
+
+////
+
+/*
+	The interface workers look up to in order to determine when they can retire.
+*/
 type Supervisor interface {
 	Quit() bool
 	QuitCh() <-chan struct{}
@@ -46,7 +78,7 @@ func NewSupervisor() (Supervisor, func()) {
 ////
 
 type Manager interface {
-	Delegate(Agent)
+	NewTask() *Writ
 	Work()
 	// TODO i do believe you who initialized this thing ought to be able to cancel it as well.
 	// at the same time, no you can't cancel individual supervisors its spawned for agents you've delegated, because wtf is that mate.
@@ -58,15 +90,15 @@ type manager struct {
 
 	mu      sync.Mutex
 	stop    bool
-	wards   map[Supervisor]func() // supervisor -> cancelfunc
+	wards   map[*Writ]func() // supervisor -> cancelfunc
 	results chan (error)
 }
 
-func (mgr *manager) Delegate(agent Agent) {
-	println("delebate!!!")
-	// Make a new supervisor for this agent to report to.
+func (mgr *manager) NewTask() *Writ {
+	// Make a new writ to track this upcoming task.
 	svr := &supervisor{mgr.ctrlChan_quit}
-	// Register it.
+	writ := &Writ{svr: svr}
+	// Register it.  Or bail if we have to stop now.
 	if halt := func() bool {
 		mgr.mu.Lock()
 		defer mgr.mu.Unlock()
@@ -74,25 +106,22 @@ func (mgr *manager) Delegate(agent Agent) {
 		if mgr.stop {
 			return true
 		}
-		mgr.wards[svr] = svr.ctrlChan_quit.Fire
+		mgr.wards[writ] = svr.ctrlChan_quit.Fire
 		return false
 	}(); halt {
-		return
+		return &Writ{nil, nil}
 	}
 
-	go func() {
-		// Make sure the manager will eventually hear about it, even if the agent walks out.
-		defer func() {
-			mgr.mu.Lock()
-			delete(mgr.wards, svr)
-			err := coerceToError(recover())
-			mgr.mu.Unlock()
-			mgr.results <- err
-		}()
-		// Give the agent their time in the spotlight.
-		agent(svr)
-		// TODO consider making this block until `Work` is called so you're less likely to accidentally orphan a manager.
-	}()
+	// Fill in rest of writ now that we we've decided we're serious.
+	// FIXME this is an insane amount of race, plz stop
+	writ.afterward = func() {
+		mgr.mu.Lock()
+		delete(mgr.wards, writ)
+		err := coerceToError(recover())
+		mgr.mu.Unlock()
+		mgr.results <- err
+	}
+	return writ
 }
 
 func (mgr *manager) step() (halt bool) {
@@ -133,7 +162,7 @@ func NewManager(reportingTo Supervisor) Manager {
 		reportingTo:   reportingTo,
 		ctrlChan_quit: latch.NewFuse(),
 
-		wards:   make(map[Supervisor]func()),
+		wards:   make(map[*Writ]func()),
 		results: make(chan error),
 	}
 }

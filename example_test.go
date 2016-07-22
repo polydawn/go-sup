@@ -19,20 +19,20 @@ func ExampleWow() {
 	})
 	var salesDirector sup.Agent = func(super sup.Supervisor) {
 		mgr := sup.NewManager(super)
-		/*go*/ mgr.Delegate(salesMinion)
-		/*go*/ mgr.Delegate(salesMinion)
-		/*go*/ mgr.Delegate(salesMinion)
+		go mgr.NewTask().Run(salesMinion)
+		go mgr.NewTask().Run(salesMinion)
+		go mgr.NewTask().Run(salesMinion)
 		mgr.Work()
 		//sup.Funnel().Gather(mgr.DoneCh()).Await()
 	}
 
 	rootSvr, triggerWrapup := sup.NewSupervisor()
 	mgr := sup.NewManager(rootSvr)
-	/*go*/ mgr.Delegate(salesDirector)
-	/*go*/ mgr.Delegate(salesDirector)
-	/*go*/ mgr.Delegate(salesDirector)
+	go mgr.NewTask().Run(salesDirector)
+	go mgr.NewTask().Run(salesDirector)
+	go mgr.NewTask().Run(salesDirector)
 	salesCnt := 0
-	/*go*/ mgr.Delegate(sup.Looper(func(super sup.Supervisor) {
+	go mgr.NewTask().Run(sup.Looper(func(super sup.Supervisor) {
 		select {
 		case sale := <-salesFunnel:
 			fmt.Fprintf(os.Stdout, "%s %d!\n", sale, salesCnt)

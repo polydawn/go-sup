@@ -15,6 +15,15 @@ import (
 	This is often useful for coordinating things that have "happens-after"
 	requirements -- for example modelling state machine transitions
 	where we want to act only when "reached ready state (and maybe further)".
+
+	A `Latch` is distinct from a `Fuse` because
+	`Fuse.Fire` can always complete immediately and never blocks;
+	`Latch.Trigger` sends messages to a channel and thus may block.
+	If you can use a `Fuse`, prefer to;
+	a `Latch` is necessary if you want to fan-in events to a gathering channel.
+	In other words, you can't easily select on a $n `Fuse`s because you have $n channels;
+	whereas with a `Latch` you can tell $n `Latch`es to trigger just 1 channel and
+	selecting for any of those latches to close is easy.
 */
 type Latch interface {
 	// Block until the latch is flipped.

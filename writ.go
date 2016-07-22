@@ -52,13 +52,14 @@ const (
 )
 
 func newRootWrit() Writ {
+	writName := WritName{}
 	quitFuse := latch.NewFuse()
 	return &writ{
-		name:      WritName{},
+		name:      writName,
 		phase:     int32(WritPhase_Issued),
 		quitFuse:  quitFuse,
 		doneFuse:  latch.NewFuse(),
-		svr:       &supervisor{quitFuse},
+		svr:       &supervisor{writName, quitFuse},
 		afterward: func() {},
 	}
 }
@@ -150,7 +151,12 @@ func (writ *writ) Cancel() {
 ////
 
 type supervisor struct {
+	name          WritName
 	ctrlChan_quit latch.Fuse // typically a copy of the one from the manager.  the supervisor is all receiving end.
+}
+
+func (super *supervisor) Name() WritName {
+	return super.name
 }
 
 func (super *supervisor) QuitCh() <-chan struct{} {

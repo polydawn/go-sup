@@ -1,6 +1,8 @@
 package sup
 
 import (
+	"fmt"
+	"os"
 	"strings"
 )
 
@@ -42,3 +44,11 @@ func (wn WritName) New(segment string) WritName {
 	The `name` and `evt` parameters will always be nonzero; `re` is optional.
 */
 type LogFn func(name WritName, evt string, re WritName)
+
+var log LogFn = func(name WritName, evt string, re WritName) {
+	if re == nil {
+		fmt.Fprintf(os.Stderr, "mgr=%s: %q\n", name, evt)
+	} else {
+		fmt.Fprintf(os.Stderr, "mgr=%s: %q re=%s\n", name, evt, re.Coda())
+	}
+}

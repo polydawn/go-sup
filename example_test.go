@@ -19,9 +19,9 @@ func ExampleWow() {
 	})
 	var salesDirector sup.Agent = func(super sup.Supervisor) {
 		mgr := sup.NewManager(super)
-		go mgr.NewTask().Run(salesMinion)
-		go mgr.NewTask().Run(salesMinion)
-		go mgr.NewTask().Run(salesMinion)
+		go mgr.NewTask("sales1").Run(salesMinion)
+		go mgr.NewTask("sales2").Run(salesMinion)
+		go mgr.NewTask("sales3").Run(salesMinion)
 		mgr.Work()
 		//sup.Funnel().Gather(mgr.DoneCh()).Await()
 	}
@@ -29,11 +29,11 @@ func ExampleWow() {
 	rootWrit := sup.NewWrit()
 	rootWrit.Run(func(super sup.Supervisor) {
 		mgr := sup.NewManager(super)
-		go mgr.NewTask().Run(salesDirector)
-		go mgr.NewTask().Run(salesDirector)
-		go mgr.NewTask().Run(salesDirector)
+		go mgr.NewTask("region-a").Run(salesDirector)
+		go mgr.NewTask("region-b").Run(salesDirector)
+		go mgr.NewTask("region-c").Run(salesDirector)
 		salesCnt := 0
-		go mgr.NewTask().Run(func(super sup.Supervisor) {
+		go mgr.NewTask("planner").Run(func(super sup.Supervisor) {
 			for {
 				select {
 				case sale := <-salesFunnel:

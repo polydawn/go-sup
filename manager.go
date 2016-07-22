@@ -2,7 +2,6 @@ package sup
 
 import (
 	"fmt"
-	"os"
 	"sync"
 
 	"go.polydawn.net/go-sup/latch"
@@ -28,11 +27,13 @@ func newManager(reportingTo Supervisor) Manager {
 	}
 }
 
-func (mgr *manager) NewTask() Writ {
+func (mgr *manager) NewTask(name string) Writ {
 	// Make a new writ to track this upcoming task.
-	svr := &supervisor{mgr.ctrlChan_quit}
+	writName := mgr.reportingTo.Name().New(name)
+	svr := &supervisor{writName, mgr.ctrlChan_quit}
 	wrt := &writ{
 		// FIXME partial initialization
+		name:     writName,
 		phase:    int32(WritPhase_Issued),
 		doneFuse: latch.NewFuse(),
 		svr:      svr,
@@ -67,7 +68,7 @@ func (mgr *manager) step() (halt bool) {
 	select {
 	case <-mgr.reportingTo.QuitCh():
 		// fixme this overreceives because you need a statemachine here and you know it
-		fmt.Fprintf(os.Stderr, "manager received quit from its supervisor\n")
+		log(mgr.reportingTo.Name(), "received quit from its supervisor", nil)
 		mgr.mu.Lock()
 		mgr.stop = true
 		for _, cancelFn := range mgr.wards {
@@ -75,7 +76,10 @@ func (mgr *manager) step() (halt bool) {
 		}
 		mgr.mu.Unlock()
 	case err := <-mgr.results: // TODO Plz don't eat these errors...
-		fmt.Fprintf(os.Stderr, "unrecovered error: %s\n", err)
+		log(mgr.reportingTo.Name(), "gathered child", nil) // TODO attribution missing
+		if err != nil {
+			log(mgr.reportingTo.Name(), fmt.Sprintf("picked up unrecovered error: %s", err), nil) // TODO attribution missing, and err serialization janky
+		}
 	}
 	// FIXME this concept of wrapup is badly fucked by the fact delegate calls you've already made may not have landed yet.
 	// because goroutines.  they weren't ours.  eeeeeiyh.  we moved on before being able to register the intention at all.  this might be unavoidable.
@@ -87,10 +91,10 @@ func (mgr *manager) step() (halt bool) {
 	return len(mgr.wards) == 0
 }
 func (mgr *manager) Work() {
-	println("lol!!!")
+	log(mgr.reportingTo.Name(), "working", nil)
 	for {
 		if halt := mgr.step(); halt {
-			println("mgr halting!!!")
+			log(mgr.reportingTo.Name(), "all done", nil)
 			return
 		}
 	}

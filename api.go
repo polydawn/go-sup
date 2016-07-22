@@ -57,13 +57,13 @@ func NewWrit() Writ {
 	The interface workers look up to in order to determine when they can retire.
 */
 type Supervisor interface {
+	Name() WritName
 	Quit() bool
 	QuitCh() <-chan struct{}
-	// Name() string // this seems like it should go here because any Agent should be able to ask who it is
 }
 
 type Manager interface {
-	NewTask() Writ
+	NewTask(name string) Writ
 	Work()
 	// TODO i do believe you who initialized this thing ought to be able to cancel it as well.
 	// at the same time, no you can't cancel individual supervisors its spawned for agents you've delegated, because wtf is that mate.

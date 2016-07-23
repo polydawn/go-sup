@@ -49,7 +49,10 @@ func (mgr *manager) NewTask(name string) Writ {
 		mgr.wards[wrt] = svr.ctrlChan_quit.Fire
 		return false
 	}(); halt {
+		log(mgr.reportingTo.Name(), "manager rejected writ requisition", writName)
 		return &writ{nil, 0, nil, nil, nil, nil} // FIXME not a valid thunk anymore
+	} else {
+		log(mgr.reportingTo.Name(), "manager releasing writ", writName)
 	}
 
 	// Fill in rest of writ now that we we've decided we're serious.

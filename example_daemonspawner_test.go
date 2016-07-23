@@ -21,7 +21,7 @@ func ExampleDaemonSpawner() {
 	cntWorkFound := 0
 	var workFinder sup.Agent = sup.Looper(func(super sup.Supervisor) {
 		select {
-		case firehose <- "work":
+		case firehose <- bigTask(fmt.Sprintf("work-%02d", cntWorkFound)):
 			cntWorkFound++
 			if cntWorkFound >= 12 {
 				close(firehose)

@@ -47,7 +47,7 @@ func Main(stdin io.Reader, stderr io.Writer) {
 			thePit:   stdin,
 			slagPipe: slagPipe,
 		}
-		go mgr.NewTask().Run(minePit.Run)
+		go mgr.NewTask("minePit").Run(minePit.Run)
 		//minePitWitness.Cancel()
 
 		oreWasher := &OreWashingFacility{
@@ -56,7 +56,7 @@ func Main(stdin io.Reader, stderr io.Writer) {
 			tinHopper:    make(chan OreTin),
 			zincHopper:   make(chan OreZinc),
 		}
-		go mgr.NewTask().Run(oreWasher.Run)
+		go mgr.NewTask("oreWasher").Run(oreWasher.Run)
 		//oreWasherWitness.Cancel()
 
 		rootWrit.Cancel()
@@ -117,7 +117,7 @@ func (owf *OreWashingFacility) Run(svr sup.Supervisor) {
 	// That means *we're* a supervisor for all those parallel processors.
 	mgr := sup.NewManager(svr)
 	for n := 0; n < 4; n++ {
-		go mgr.NewTask().Run(owf.runSingleStation)
+		go mgr.NewTask(fmt.Sprintf("wshr-%02d", n)).Run(owf.runSingleStation)
 	}
 	mgr.Work()
 }

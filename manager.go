@@ -68,6 +68,27 @@ func (mgr *manager) NewTask(name string) Writ {
 }
 
 func (mgr *manager) step() (halt bool) {
+	/*
+		We can ALMOST entirely get away without an actor for manager state.
+		Creating writs: caller has power, can mutex and update things.
+		Returning writs: have some power, can mutex and update things.
+		Awaiting final return: has power, can yada yada.
+		Selecting on an error chan: doesn't need power, is filled by returning writs.
+		Proxying down quit from supervisor: shit.
+		This gives me Feels, because sometimes it's shrug to do that, and other times horrid:
+		In the daemonspawner example, sure, we already have a selecting actor, adding the quit shuttle is easy.
+		In the simpler example... `mgr.Work(repeatedSupervRef.QuitCh())`.  Could be worse I guess.
+		Other reasons to add a worker: it can do timeout checks reliably.
+
+		So after a lot of thought: yes -- use a secretary routine.
+		It's fundamentally incorrect to make the manager's understanding of the world be causally entangled with your actor (if you have one) except in very confined and polite opt-in ways.
+		In other words, a `case myactor.ctrlChan <- reallySlowFunc():` should not be capable of altering how rapidly the real sequence of child events can be logged.
+		The only thing we're really worried about conserving here is the amount of noise you get if you dump *all* stacks.  Which is not a normal operation; and, pretty easily to filter if you really must.
+
+		The last generation of supervisor_internal code is mostly correct, but we can simplify it significantly.
+		For example, I don't think we care anymore if the thing was quit or not.  Just whether it will serve more writs or not.
+		If you call quit repeately, I don't really care; we'll proxy that call (and the fuses will noop redundant things out); and the quit just moves us to not-accepting.
+	*/
 	select {
 	case <-mgr.reportingTo.QuitCh():
 		// fixme this overreceives because you need a statemachine here and you know it

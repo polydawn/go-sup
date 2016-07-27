@@ -50,7 +50,7 @@ type Writ interface {
 	of Writs which can all be managed and cancelled at once.
 */
 func NewWrit() Writ {
-	return newRootWrit()
+	return newWrit(WritName{})
 }
 
 /*

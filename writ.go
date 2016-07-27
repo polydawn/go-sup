@@ -51,15 +51,14 @@ const (
 	writFlag_Used WritPhase = 1 << 8
 )
 
-func newRootWrit() Writ {
-	writName := WritName{}
+func newWrit(name WritName) *writ {
 	quitFuse := latch.NewFuse()
 	return &writ{
-		name:      writName,
+		name:      name,
 		phase:     int32(WritPhase_Issued),
 		quitFuse:  quitFuse,
 		doneFuse:  latch.NewFuse(),
-		svr:       &supervisor{writName, quitFuse},
+		svr:       &supervisor{name, quitFuse},
 		afterward: func() {},
 	}
 }
@@ -96,6 +95,7 @@ func (writ *writ) Run(fn Agent) {
 		//  we have no choice but to quietly pack it in.
 		return
 	}
+	defer writ.afterward()
 	defer func() {
 		for {
 			ph := WritPhase(atomic.LoadInt32(&writ.phase))
@@ -111,7 +111,6 @@ func (writ *writ) Run(fn Agent) {
 		}
 		writ.doneFuse.Fire()
 	}()
-	defer writ.afterward()
 	fn(writ.svr)
 }
 

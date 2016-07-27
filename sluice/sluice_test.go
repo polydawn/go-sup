@@ -30,10 +30,10 @@ func Test(t *testing.T) {
 			So(answered, ShouldEqual, false)
 
 			Convey("answers even dropped channels", func() {
-				secondReq := gondola.Next()
 				gondola.Push("1")
 				// we still don't expect an answer,
 				//  because the "1" routed to the channel in the prev test.
+				secondReq := gondola.Next()
 				select {
 				case <-secondReq:
 					answered = true

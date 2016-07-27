@@ -1,4 +1,4 @@
-package canal
+package sluice
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 )
 
 func Test(t *testing.T) {
-	Convey("Canal can...", t, func() {
+	Convey("Sluice can...", t, func() {
 		gondola := New()
 
 		Convey("pump values", func() {

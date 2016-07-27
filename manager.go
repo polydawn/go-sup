@@ -1,8 +1,8 @@
 package sup
 
 import (
-	"go.polydawn.net/go-sup/canal"
 	"go.polydawn.net/go-sup/latch"
+	"go.polydawn.net/go-sup/sluice"
 )
 
 type manager struct {
@@ -15,7 +15,7 @@ type manager struct {
 
 	ctrlChan_childDone chan Writ
 	wards              map[Writ]func() // live writs -> cancelfunc
-	tombstones         canal.Canal     // of `Writ`s that are done
+	tombstones         sluice.Sluice   // of `Writ`s that are done
 }
 
 type (
@@ -36,7 +36,7 @@ func newManager(reportingTo Supervisor) Manager {
 
 		ctrlChan_childDone: make(chan Writ),
 		wards:              make(map[Writ]func()),
-		tombstones:         canal.New(),
+		tombstones:         sluice.New(),
 	}
 	go mgr.run()
 	return mgr

@@ -14,7 +14,7 @@
 	and lots of lost reads.  More correct: keep the reference
 	and replace it only when you actually follow that select path down.
 */
-package canal
+package sluice
 
 import (
 	"sync"
@@ -22,24 +22,24 @@ import (
 
 type T interface{}
 
-type Canal interface {
+type Sluice interface {
 	Push(T)
 	Next() <-chan T
 }
 
-func New() Canal {
-	return &canal{
+func New() Sluice {
+	return &sluice{
 		serviceReqs: make(map[chan T]struct{}),
 	}
 }
 
-type canal struct {
+type sluice struct {
 	mu          sync.Mutex
 	serviceReqs map[chan T]struct{}
 	queue       []T
 }
 
-func (db *canal) Push(x T) {
+func (db *sluice) Push(x T) {
 	db.mu.Lock()
 	defer db.mu.Unlock()
 	req := db.pluck()
@@ -50,7 +50,7 @@ func (db *canal) Push(x T) {
 	}
 }
 
-func (db *canal) pluck() chan T {
+func (db *sluice) pluck() chan T {
 	for req, _ := range db.serviceReqs {
 		delete(db.serviceReqs, req)
 		return req
@@ -62,7 +62,7 @@ func (db *canal) pluck() chan T {
 	Request a pull of what's next; a channel for the future result is returned.
 	One value will eventually be sent on the channel.
 */
-func (db *canal) Next() <-chan T {
+func (db *sluice) Next() <-chan T {
 	respCh := make(chan T, 1)
 	db.mu.Lock()
 	defer db.mu.Unlock()

@@ -1,15 +1,21 @@
 /*
-	Canals are a pattern of using channels where you need to select for ready events,
-	but directly using buffered channels isn't desirably because events need to be
+	`sluice` provides a way to use channels where you need to select for ready events,
+	but directly using buffered channels isn't desirable because events need to be
 	reordered after dropoff; or, because allowing writers to block is simply untenable.
 
-	The read channels produced by a Canal are buffered and shall eventually
+	The read channels produced by a Sluice are buffered and shall eventually
 	provide one value -- no more; to read again, get another channel.
+
+	A Sluice will internally buffer without limit.
+	That means if the input volume is unlimited, and the consumers are
+	slower than the producers, you will eventually run out of memory!
+	If backpressure is important, a sluice is *not* the right choice;
+	prefer a regular buffered channel instead.
 
 	Be careful not to create a read request with `Next` and then drop the channel.
 	Doing so won't crash or deadlock the program, but it will lose a value.
 	Particularly watch out for this in a select used inside a loop;
-	naively using `case val := <-canal.Next():` will spawn a read request
+	naively using `case val := <-sluice.Next():` will spawn a read request
 	*every* time you enter the select, resulting in too many channels
 	and lots of lost reads.  More correct: keep the reference
 	and replace it only when you actually follow that select path down.

@@ -19,7 +19,7 @@ func ExampleDaemonSpawner() {
 
 	firehose := make(chan bigTask)
 	cntWorkFound := 0
-	var workFinder sup.Agent = sup.Looper(func(super sup.Supervisor) {
+	var workFinder sup.Agent = sup.Behaviors.Looper(func(super sup.Supervisor) {
 		select {
 		case firehose <- bigTask(fmt.Sprintf("work-%02d", cntWorkFound)):
 			cntWorkFound++

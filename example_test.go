@@ -10,7 +10,7 @@ import (
 func ExampleWow() {
 	type bid string
 	salesFunnel := make(chan bid)
-	var salesMinion sup.Agent = sup.Looper(func(super sup.Supervisor) {
+	var salesMinion sup.Agent = sup.Behaviors.Looper(func(super sup.Supervisor) {
 		select {
 		case salesFunnel <- "sale":
 		case <-super.QuitCh():

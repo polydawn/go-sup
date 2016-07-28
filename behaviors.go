@@ -1,8 +1,23 @@
 package sup
 
+/*
+	Gathering type to hang methods off of.
+
+	Typical useage is via
+
+		sup.Behaviors.Looper([...])
+*/
+type Behavior struct{}
+
+var Behaviors Behavior
+
 //// Looper
 
-func Looper(agent Agent) Agent {
+/*
+	Decorates an agent to be invoked in a loop, so long as
+	the supervisor hasn't signalled it's time to quit.
+*/
+func (Behavior) Looper(agent Agent) Agent {
 	return looper{agent}.Work
 }
 

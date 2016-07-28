@@ -1,21 +1,24 @@
 package sup
 
 import (
+	"sync"
+
 	"go.polydawn.net/go-sup/latch"
 	"go.polydawn.net/go-sup/sluice"
 )
 
 type manager struct {
-	reportingTo Supervisor
+	reportingTo Supervisor // configured at start
 
-	ctrlChan_spawn    chan reqWrit
-	ctrlChan_winddown latch.Fuse
-	ctrlChan_quit     latch.Fuse
-	doneFuse          latch.Fuse
+	ctrlChan_winddown latch.Fuse // set at init.  fired by external event.
+	ctrlChan_quit     latch.Fuse // set at init.  fired by external event.
+	doneFuse          latch.Fuse // set at init.  fired to announce internal state change.
 
-	ctrlChan_childDone chan Writ
+	mu                 sync.Mutex      // must hold while touching wards
+	accepting          bool            // must hold `mu`.  if false, may no longer append to wards.
 	wards              map[Writ]func() // live writs -> cancelfunc
-	tombstones         sluice.Sluice   // of `Writ`s that are done
+	ctrlChan_childDone chan Writ       // writs report here when done
+	tombstones         sluice.Sluice   // of `Writ`s that are done and not yet externally ack'd.  no sync needed.
 }
 
 type (
@@ -29,13 +32,13 @@ func newManager(reportingTo Supervisor) Manager {
 	mgr := &manager{
 		reportingTo: reportingTo,
 
-		ctrlChan_spawn:    make(chan reqWrit),
 		ctrlChan_winddown: latch.NewFuse(),
 		ctrlChan_quit:     latch.NewFuse(),
 		doneFuse:          latch.NewFuse(),
 
-		ctrlChan_childDone: make(chan Writ),
+		accepting:          true,
 		wards:              make(map[Writ]func()),
+		ctrlChan_childDone: make(chan Writ),
 		tombstones:         sluice.New(),
 	}
 	go mgr.run()
@@ -43,11 +46,7 @@ func newManager(reportingTo Supervisor) Manager {
 }
 
 func (mgr *manager) NewTask(name string) Writ {
-	// REVIEW: if we *could* make this work without queuing into the actor,
-	//  it'd... make it *possible* to make the actor optional to run in parallel.
-	ret := make(chan Writ, 1)
-	mgr.ctrlChan_spawn <- reqWrit{name, ret}
-	return <-ret
+	return mgr.releaseWrit(name)
 }
 
 func (mgr *manager) Work() {

@@ -26,7 +26,7 @@ func ExampleWow() {
 		//sup.Funnel().Gather(mgr.DoneCh()).Await()
 	}
 
-	rootWrit := sup.NewWrit()
+	rootWrit := sup.NewTask()
 	rootWrit.Run(func(super sup.Supervisor) {
 		mgr := sup.NewManager(super)
 		go mgr.NewTask("region-a").Run(salesDirector)

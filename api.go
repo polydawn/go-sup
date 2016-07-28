@@ -10,7 +10,7 @@
 	which your application can check to see if this service should quit.
 	(This is necessary for orderly shutdown in complex applications.)
 
-	Start your application with `sup.NewWrit(yourAgentFn)`.
+	Start your application with `sup.NewTask(yourAgentFn)`.
 
 	Whenever your application needs to split off more worker goroutines,
 	create a `Manager`.  Use the `Manager.NewTask` function to set up
@@ -36,9 +36,9 @@ type Agent func(Supervisor)
 	A Writ is the authority and the setup for a supervisor -- create one,
 	then use it to run your `Agent` function.
 
-	Use `NewWrit` to get started at the top of your program.
+	Use `NewTask` to get started at the top of your program.
 	After that, any of your agent functions that wants to delegate work
-	should create a `Manager`, then launch tasks via `Manager.NewWrit`.
+	should create a `Manager`, then launch tasks via `Manager.NewTask`.
 */
 type Writ interface {
 	/*
@@ -54,8 +54,8 @@ type Writ interface {
 		`Writ.Run` instead of taken as a parameter at creation time
 		to make sure you don't accidentally pass in the agent
 		function and then forget to call the real 'go-do-it' method afterwards.
-		We need two methods because in the statement `go mgr.NewWrit(taskfn)`,
-		the `NewWrit` call is not evaluated until arbitrarily later, yet
+		We need two methods because in the statement `go mgr.NewTask(taskfn)`,
+		the `NewTask` call is not evaluated until arbitrarily later, yet
 		for system-wide sanity and graceful termination, we need to be able
 		to declare "no new tasks accepted" at a manager... and then return,
 		but of course only after all already-started tasks are done.
@@ -69,15 +69,21 @@ type Writ interface {
 }
 
 /*
-	Construct a new root Writ.
-	It answers to no one and will only be cancelled by your hand.
+	Prepare a new task -- it will answer to no one
+	and will only be cancelled by your hand.
 
 	Use this to manually supervise over a single Agent.
-	If launching multiple Agents, use a `Manager` to set up a bunch
-	of Writs which can all be managed and cancelled at once.
+	If launching multiple Agents, create a `Manager` and use `Manager.NewTask()`.
+	A Manager can help monitor, control, and cancel many tasks at once.
+
+	Typically, `sup.NewTask()` is used only once -- at the start of your program.
 */
-func NewWrit() Writ {
-	return newWrit(WritName{})
+func NewTask(name ...string) Writ {
+	writName := WritName{}
+	for _, n := range name {
+		writName = writName.New(n)
+	}
+	return newWrit(writName)
 }
 
 /*

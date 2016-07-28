@@ -38,7 +38,7 @@ func Main(stdin io.Reader, stderr io.Writer) {
 	//  teams tend to be short-lived, but they may ask questions about
 	//  (or sometimes give odd orders to) the other three major operational
 	//  centers of our production pipeline.
-	rootWrit := sup.NewWrit()
+	rootWrit := sup.NewTask()
 	rootWrit.Run(func(super sup.Supervisor) {
 		mgr := sup.NewManager(super)
 

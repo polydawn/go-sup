@@ -54,7 +54,7 @@ func ExampleDaemonSpawner() {
 		mgr.Work()
 	}
 
-	rootWrit := sup.NewWrit()
+	rootWrit := sup.NewTask()
 	rootWrit.Run(func(super sup.Supervisor) {
 		mgr := sup.NewManager(super)
 		go mgr.NewTask("workFinder").Run(workFinder)

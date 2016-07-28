@@ -1,3 +1,30 @@
+/*
+	The go-sup package provides a "supervisor" system for easily and safely
+	launching concurrent tasks, while also reliably handling errors, and
+	simplifying concurrent shutdowns.
+
+	To make use of go-sup, your application functions should implement
+	the `Agent` interface: this accepts a `Supervisor`.
+
+	`Supervisor` provides a name to your task (for logging), and channels
+	which your application can check to see if this service should quit.
+	(This is necessary for orderly shutdown in complex applications.)
+
+	Start your application with `sup.NewWrit(yourAgentFn)`.
+
+	Whenever your application needs to split off more worker goroutines,
+	create a `Manager`.  Use the `Manager.NewTask` function to set up
+	supervision for those tasks, then kick them off in parallel with `go`.
+	You can wait for all the tasks, and handle their errors, using the
+	manager.
+
+	Build the rest of your application flow with channels as normal.
+	go-sup stays out of the way, and provides control channels you can
+	use in your application selects if you need to...
+	or you can simply ignore them, if you don't need fancy handling.
+
+	That's it.  Error handling made easy; quit signals built in throughout.
+*/
 package sup
 
 /*

@@ -21,7 +21,7 @@ import (
 	`Latch.Trigger` sends messages to a channel and thus may block.
 	If you can use a `Fuse`, prefer to;
 	a `Latch` is necessary if you want to fan-in events to a gathering channel.
-	In other words, you can't easily select on a $n `Fuse`s because you have $n channels;
+	In other words, you can't easily select on $n `Fuse`s because you have $n channels;
 	whereas with a `Latch` you can tell $n `Latch`es to trigger just 1 channel and
 	selecting for any of those latches to close is easy.
 */

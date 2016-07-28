@@ -6,6 +6,7 @@ import (
 
 type Fuse interface {
 	Fire()
+	IsBlown() bool
 	Selectable() <-chan struct{}
 }
 
@@ -28,6 +29,10 @@ func (f *fuse) Fire() {
 	}
 	close(f.ch)
 	return
+}
+
+func (f *fuse) IsBlown() bool {
+	return atomic.LoadInt32(&f.done) == 1
 }
 
 func (f *fuse) Selectable() <-chan struct{} {

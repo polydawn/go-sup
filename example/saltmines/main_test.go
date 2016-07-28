@@ -30,6 +30,5 @@ func ExampleSaltmines() {
 
 	// Output:
 	// Owner: hello
-	// Owner: leaving for cayman
 	// Example: complete!
 }

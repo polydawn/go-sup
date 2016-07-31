@@ -14,6 +14,7 @@ type writ struct {
 	doneFuse  latch.Fuse // we'll fire this when moving to done
 	svr       Supervisor
 	afterward func()
+	err       error
 }
 
 /*
@@ -97,6 +98,7 @@ func (writ *writ) Run(fn Agent) {
 	}
 	defer writ.afterward()
 	defer func() {
+		writ.err = coerceToError(recover())
 		for {
 			ph := WritPhase(atomic.LoadInt32(&writ.phase))
 			// transition here is not variable, but filter for sanity check

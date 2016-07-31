@@ -1,6 +1,7 @@
 package sup
 
 import (
+	"fmt"
 	"sort"
 	"testing"
 
@@ -50,6 +51,20 @@ func TestManager(t *testing.T) {
 					So(mgr.(*manager).wards, ShouldHaveLength, 0)
 				})
 			})
+
+			Convey("And some exploding tasks!", func() {
+				ch := make(chan string, 0)
+				explo := fmt.Errorf("bang!")
+				go mgr.NewTask("1").Run(ChanWriterAgent("1", ch))
+				go mgr.NewTask("2").Run(ChanWriterAgent("2", ch))
+				go mgr.NewTask("e").Run(ExplosiveAgent(explo))
+
+				Convey("Manager.Work should raise the panic", func() {
+					So(mgr.Work, ShouldPanicWith, explo)
+					So(mgr.(*manager).doneFuse.IsBlown(), ShouldBeTrue)
+					So(mgr.(*manager).wards, ShouldHaveLength, 0)
+				})
+			})
 		})
 	})
 }
@@ -60,5 +75,11 @@ func ChanWriterAgent(msg string, ch chan<- string) Agent {
 		case ch <- msg:
 		case <-supvr.QuitCh():
 		}
+	}
+}
+
+func ExplosiveAgent(err error) Agent {
+	return func(Supervisor) {
+		panic(err)
 	}
 }

@@ -148,7 +148,6 @@ func (mgr *manager) releaseWrit(name string) Writ {
 	wrt.afterward = func() {
 		log(mgr.reportingTo.Name(), "writ turning in", writName)
 		mgr.ctrlChan_childDone <- wrt
-		recover() // FIXME make this more serious again.  Although also REVIEW if maybe we want the writ to do error recovery universally.
 	}
 	// Register it.
 	mgr.wards[wrt] = wrt.quitFuse.Fire

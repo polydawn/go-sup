@@ -63,9 +63,37 @@ type Writ interface {
 		why we need a register step and a run step in separate methods.
 	*/
 
+	/*
+		Returns the name assigned to this writ when it was created.
+		Names are a list of strings, typically indicating the hierarchy of
+		managers the writ was created under.
+	*/
+	Name() WritName
+
+	/*
+		Do the duty: run the given function using the current goroutine.
+		Errors will be captured, etc; you're free (advised, even) to
+		run this in a new goroutine e.g. `go thewrit.Run(anAgentFunc)`
+	*/
 	Run(Agent)
 
+	/*
+		Cancel the writ.  This will cause supervisor handed to a `Run` agent
+		to move to its quitting state.
+	*/
 	Cancel()
+
+	/*
+		Return the error that was panicked from the running agent, or, wait
+		until the agent has returned without error (in which case the result
+		is nil).
+	*/
+	Err() error
+
+	/*
+		Return a channel which will be closed when the writ becomes done.
+	*/
+	DoneCh() <-chan struct{}
 }
 
 /*

@@ -64,6 +64,10 @@ func newWrit(name WritName) *writ {
 	}
 }
 
+func (writ *writ) Name() WritName {
+	return writ.name
+}
+
 func (writ *writ) Run(fn Agent) {
 	var fly bool
 	for {
@@ -116,8 +120,6 @@ func (writ *writ) Run(fn Agent) {
 	fn(writ.svr)
 }
 
-//func (writ *writ) step(stepFn func(WritPhase) WritPhase) {}
-
 func (writ *writ) Cancel() {
 	writ.quitFuse.Fire()
 	var terminatedHere bool
@@ -147,6 +149,15 @@ func (writ *writ) Cancel() {
 	if terminatedHere {
 		writ.doneFuse.Fire()
 	}
+}
+
+func (writ *writ) Err() error {
+	<-writ.doneFuse.Selectable()
+	return writ.err
+}
+
+func (writ *writ) DoneCh() <-chan struct{} {
+	return writ.doneFuse.Selectable()
 }
 
 ////

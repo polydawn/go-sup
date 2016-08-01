@@ -3,6 +3,7 @@ package sup
 import (
 	"fmt"
 	"sync"
+	"time"
 
 	"go.polydawn.net/go-sup/latch"
 	"go.polydawn.net/go-sup/sluice"
@@ -66,6 +67,9 @@ func (mgr *manager) NewTask(name string) Writ {
 func (mgr *manager) Work() {
 	mgr.ctrlChan_winddown.Fire()
 	var devastation error
+
+	// While we're in the winddown state --
+	//  Passively collecting results, and jump ourselves to quit in case of errors.
 PreDoneLoop:
 	for {
 		// note: if we had a true fire-drill exit mode, we'd probably
@@ -75,6 +79,8 @@ PreDoneLoop:
 		case rcv := <-mgr.tombstones.Next():
 			writ := (rcv).(*writ)
 			if writ.err != nil {
+				msg := fmt.Sprintf("manager autoquitting becomes of error child error: %s", writ.err)
+				log(mgr.reportingTo.Name(), msg, writ.name)
 				devastation = writ.err
 				mgr.ctrlChan_quit.Fire()
 				break PreDoneLoop
@@ -83,7 +89,31 @@ PreDoneLoop:
 			break PreDoneLoop
 		}
 	}
-	<-mgr.doneFuse.Selectable()
+
+	// If we need to keep waiting for alldone, we also tick during it, so
+	//  we can warn you about children not responding to quit reasonably quickly.
+	quitTime := time.Now()
+	tick := time.NewTicker(2 * time.Second)
+YUNoDoneLoop:
+	for {
+		select {
+		case <-tick.C:
+			mgr.mu.Lock()
+			msg := fmt.Sprintf("quit %d ago, still waiting for children: %d remaining",
+				time.Now().Sub(quitTime).Seconds(),
+				len(mgr.wards),
+			)
+			mgr.mu.Unlock()
+			log(mgr.reportingTo.Name(), msg, nil)
+		case <-mgr.doneFuse.Selectable():
+			break YUNoDoneLoop
+		}
+	}
+	tick.Stop()
+
+	// Now that we're fully done: range over all the child tombstones, so that
+	//  any errors can be raised upstream (or if we already have a little
+	//   bundle of joy, at least make brief mention of others in the log).
 FinalizeLoop:
 	for {
 		select {
@@ -95,6 +125,8 @@ FinalizeLoop:
 					log(mgr.reportingTo.Name(), msg, writ.name)
 					continue
 				}
+				msg := fmt.Sprintf("manager gathered an error while shutting down: %s", writ.err)
+				log(mgr.reportingTo.Name(), msg, writ.name)
 				devastation = writ.err
 			}
 		default:
@@ -103,6 +135,8 @@ FinalizeLoop:
 			break FinalizeLoop
 		}
 	}
+
+	// If we collected a child error at any point, raise it now.
 	if devastation != nil {
 		panic(devastation)
 	}

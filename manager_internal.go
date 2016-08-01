@@ -164,7 +164,7 @@ func (mgr *manager) stopAccepting() {
 func (mgr *manager) reapChild(childDone Writ) {
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
-	log(mgr.reportingTo.Name(), "reaped child", nil) // TODO attribution missing, writ doesn't admit own name why?
+	log(mgr.reportingTo.Name(), "reaped child", childDone.Name())
 	delete(mgr.wards, childDone)
 	mgr.tombstones.Push(childDone)
 }

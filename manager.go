@@ -99,9 +99,14 @@ YUNoDoneLoop:
 		select {
 		case <-tick.C:
 			mgr.mu.Lock()
-			msg := fmt.Sprintf("quit %d ago, still waiting for children: %d remaining",
-				time.Now().Sub(quitTime).Seconds(),
+			var names []string
+			for ward, _ := range mgr.wards {
+				names = append(names, ward.Name().Coda())
+			}
+			msg := fmt.Sprintf("quit %d ago, still waiting for children: %d remaining [%s]",
+				int(time.Now().Sub(quitTime).Seconds()),
 				len(mgr.wards),
+				names,
 			)
 			mgr.mu.Unlock()
 			log(mgr.reportingTo.Name(), msg, nil)

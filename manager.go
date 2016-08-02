@@ -102,6 +102,10 @@ YUNoDoneLoop:
 			var names []string
 			for ward, _ := range mgr.wards {
 				names = append(names, ward.Name().Coda())
+				if len(names) > 6 {
+					names = append(names, "...")
+					break
+				}
 			}
 			msg := fmt.Sprintf("quit %d ago, still waiting for children: %d remaining [%s]",
 				int(time.Now().Sub(quitTime).Seconds()),

@@ -68,7 +68,7 @@ func (writ *writ) Name() WritName {
 	return writ.name
 }
 
-func (writ *writ) Run(fn Agent) {
+func (writ *writ) Run(fn Agent) Writ {
 	var fly bool
 	for {
 		fly = false
@@ -98,7 +98,7 @@ func (writ *writ) Run(fn Agent) {
 	if !fly {
 		// the writ was cancelled before our goroutine really got started;
 		//  we have no choice but to quietly pack it in.
-		return
+		return writ
 	}
 	defer writ.afterward()
 	defer func() {
@@ -118,9 +118,10 @@ func (writ *writ) Run(fn Agent) {
 		writ.doneFuse.Fire()
 	}()
 	fn(writ.svr)
+	return writ
 }
 
-func (writ *writ) Cancel() {
+func (writ *writ) Cancel() Writ {
 	writ.quitFuse.Fire()
 	var terminatedHere bool
 	for {
@@ -135,9 +136,9 @@ func (writ *writ) Cancel() {
 		case WritPhase_InUse:
 			next = WritPhase_Quitting
 		case WritPhase_Quitting:
-			return // we're already quitting: the Run defer is responsible for the step to terminal.
+			return writ // we're already quitting: the Run defer is responsible for the step to terminal.
 		case WritPhase_Terminal:
-			return // we're already full halted: great.
+			return writ // we're already full halted: great.
 		default:
 			panic(fmt.Sprintf("invalid writ state %d", ph))
 		}
@@ -149,6 +150,7 @@ func (writ *writ) Cancel() {
 	if terminatedHere {
 		writ.doneFuse.Fire()
 	}
+	return writ
 }
 
 func (writ *writ) Err() error {

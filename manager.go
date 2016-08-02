@@ -150,3 +150,7 @@ FinalizeLoop:
 		panic(devastation)
 	}
 }
+
+func (mgr *manager) GatherChild() <-chan sluice.T {
+	return mgr.tombstones.Next()
+}

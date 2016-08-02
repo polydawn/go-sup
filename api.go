@@ -78,14 +78,18 @@ type Writ interface {
 		Do the duty: run the given function using the current goroutine.
 		Errors will be captured, etc; you're free (advised, even) to
 		run this in a new goroutine e.g. `go thewrit.Run(anAgentFunc)`
+
+		Returns self, to enable chaining if desired.
 	*/
-	Run(Agent)
+	Run(Agent) Writ
 
 	/*
 		Cancel the writ.  This will cause supervisor handed to a `Run` agent
 		to move to its quitting state.
+
+		Returns self, to enable chaining if desired.
 	*/
-	Cancel()
+	Cancel() Writ
 
 	/*
 		Return the error that was panicked from the running agent, or, wait

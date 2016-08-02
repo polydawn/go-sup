@@ -68,7 +68,8 @@ func (writ *writ) Name() WritName {
 	return writ.name
 }
 
-func (writ *writ) Run(fn Agent) Writ {
+func (writ *writ) Run(fn Agent) (ret Writ) {
+	ret = writ
 	var fly bool
 	for {
 		fly = false
@@ -98,7 +99,7 @@ func (writ *writ) Run(fn Agent) Writ {
 	if !fly {
 		// the writ was cancelled before our goroutine really got started;
 		//  we have no choice but to quietly pack it in.
-		return writ
+		return
 	}
 	defer writ.afterward()
 	defer func() {
@@ -118,7 +119,7 @@ func (writ *writ) Run(fn Agent) Writ {
 		writ.doneFuse.Fire()
 	}()
 	fn(writ.svr)
-	return writ
+	return
 }
 
 func (writ *writ) Cancel() Writ {

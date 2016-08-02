@@ -27,6 +27,10 @@
 */
 package sup
 
+import (
+	"go.polydawn.net/go-sup/sluice"
+)
+
 /*
 	Your functions!
 */
@@ -124,8 +128,38 @@ type Supervisor interface {
 }
 
 type Manager interface {
+	/*
+		Tell the manager there's new stuff to do; get a writ you can use to run
+		your new stuff under the manager's supervision.
+
+		The writ may actually be a no-op'er, if the manager is no longer
+		accepting new wards.
+	*/
 	NewTask(name string) Writ
+
+	/*
+		Halt accepting new work, and service all existing children.
+		Errors raised by any children will cause the manager to cancel all
+		other children and raise that first error -- returning (or panicking)
+		only after all children have returned.
+	*/
 	Work()
+
+	/*
+		Return a channel that will eventually return a `Writ` of a completed
+		child function.
+
+		This is a `go-sup/sluice` channel -- be careful about discarding it;
+		the chan will *eventually* soak a value, whether you receive it or not.
+
+		The returned value will be a `Writ` -- the `sluice.T` type is an
+		artifact of generics not being a thing.
+
+		You don't need to call this if you find the error handling of `Work`
+		to be acceptable.
+	*/
+	GatherChild() <-chan sluice.T
+
 	// TODO i do believe you who initialized this thing ought to be able to cancel it as well.
 	// at the same time, no you can't cancel individual supervisors its spawned for agents you've delegated, because wtf is that mate.
 }

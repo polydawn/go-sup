@@ -171,3 +171,17 @@ type Manager interface {
 func NewManager(reportingTo Supervisor) Manager {
 	return newManager(reportingTo)
 }
+
+/*
+	Sets the log function used for internal debug messages.
+
+	Don't call this in libraries.
+	If you do call it in a program, do	so as early as possible;
+	if you fail to set this before starting any tasks or supervisors
+	(or spinning off any goroutines that will do so), then your logs may be
+	of mixed format, and if you have the race detector enabled you will most
+	certainly find one.
+*/
+func SetLogFunction(fn LogFn) {
+	log = fn
+}

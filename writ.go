@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"go.polydawn.net/meep"
+
 	"go.polydawn.net/go-sup/latch"
 )
 
@@ -102,23 +104,26 @@ func (writ *writ) Run(fn Agent) (ret Writ) {
 		return
 	}
 	defer writ.afterward()
-	defer func() {
-		writ.err = coerceToError(recover())
-		for {
-			ph := WritPhase(atomic.LoadInt32(&writ.phase))
-			// transition here is not variable, but filter for sanity check
-			switch ph & ^writFlag_Used {
-			case WritPhase_InUse, WritPhase_Quitting:
-			default:
-				panic(fmt.Sprintf("invalid writ state %d", ph))
-			}
-			if atomic.CompareAndSwapInt32(&writ.phase, int32(ph), int32(WritPhase_Terminal|writFlag_Used)) {
-				break
-			}
+	meep.Try(func() {
+		fn(writ.svr)
+	}, meep.TryPlan{
+		{CatchAny: true, Handler: func(e error) {
+			writ.err = meep.Meep(&ErrTaskPanic{}, meep.Cause(e))
+		}},
+	})
+	for {
+		ph := WritPhase(atomic.LoadInt32(&writ.phase))
+		// transition here is not variable, but filter for sanity check
+		switch ph & ^writFlag_Used {
+		case WritPhase_InUse, WritPhase_Quitting:
+		default:
+			panic(fmt.Sprintf("invalid writ state %d", ph))
 		}
-		writ.doneFuse.Fire()
-	}()
-	fn(writ.svr)
+		if atomic.CompareAndSwapInt32(&writ.phase, int32(ph), int32(WritPhase_Terminal|writFlag_Used)) {
+			break
+		}
+	}
+	writ.doneFuse.Fire()
 	return
 }
 

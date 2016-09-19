@@ -7,3 +7,6 @@
 [submodule ".gopath/src/github.com/smartystreets/assertions"]
 	path = .gopath/src/github.com/smartystreets/assertions
 	url = https://github.com/smartystreets/assertions
+[submodule ".gopath/src/go.polydawn.net/meep"]
+	path = .gopath/src/go.polydawn.net/meep
+	url = https://github.com/polydawn/meep.git

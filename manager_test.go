@@ -60,7 +60,7 @@ func TestManager(t *testing.T) {
 				go mgr.NewTask("e").Run(ExplosiveAgent(explo))
 
 				Convey("Manager.Work should raise the panic", func() {
-					So(mgr.Work, ShouldPanicWith, explo)
+					So(mgr.Work, ShouldPanic)
 					So(mgr.(*manager).doneFuse.IsBlown(), ShouldBeTrue)
 					So(mgr.(*manager).wards, ShouldHaveLength, 0)
 				})

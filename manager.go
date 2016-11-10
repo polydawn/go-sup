@@ -80,7 +80,7 @@ PreDoneLoop:
 			writ := (rcv).(*writ)
 			if writ.err != nil {
 				msg := fmt.Sprintf("manager autoquitting becomes of error child error: %s", writ.err)
-				log(mgr.reportingTo.Name(), msg, writ.name)
+				log(mgr.reportingTo.Name(), msg, writ.name, false)
 				devastation = writ.err
 				mgr.ctrlChan_quit.Fire()
 				break PreDoneLoop
@@ -113,7 +113,7 @@ YUNoDoneLoop:
 				names,
 			)
 			mgr.mu.Unlock()
-			log(mgr.reportingTo.Name(), msg, nil)
+			log(mgr.reportingTo.Name(), msg, nil, true)
 		case <-mgr.doneFuse.Selectable():
 			break YUNoDoneLoop
 		}
@@ -131,11 +131,11 @@ FinalizeLoop:
 			if writ.err != nil {
 				if devastation != nil {
 					msg := fmt.Sprintf("manager gathered additional errors while shutting down: %s", writ.err)
-					log(mgr.reportingTo.Name(), msg, writ.name)
+					log(mgr.reportingTo.Name(), msg, writ.name, true)
 					continue
 				}
 				msg := fmt.Sprintf("manager gathered an error while shutting down: %s", writ.err)
-				log(mgr.reportingTo.Name(), msg, writ.name)
+				log(mgr.reportingTo.Name(), msg, writ.name, true)
 				devastation = writ.err
 			}
 		default:

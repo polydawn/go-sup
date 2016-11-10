@@ -107,8 +107,18 @@ func (writ *writ) Run(fn Agent) (ret Writ) {
 	meep.Try(func() {
 		fn(writ.svr)
 	}, meep.TryPlan{
+		{ByType: &ErrTaskPanic{}, Handler: func(e error) {
+			writ.err = meep.Meep(
+				&ErrTaskPanic{Task: writ.Name()},
+				meep.Cause(e),
+				meep.NoStack(),
+			)
+		}},
 		{CatchAny: true, Handler: func(e error) {
-			writ.err = meep.Meep(&ErrTaskPanic{}, meep.Cause(e))
+			writ.err = meep.Meep(
+				&ErrTaskPanic{Task: writ.Name()},
+				meep.Cause(e),
+			)
 		}},
 	})
 	for {

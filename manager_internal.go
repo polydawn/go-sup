@@ -10,8 +10,8 @@ package sup
 	purely internal so it can reliably handle its own blocking behavior.
 */
 func (mgr *manager) run() {
-	log(mgr.reportingTo.Name(), "working", nil)
-	defer log(mgr.reportingTo.Name(), "all done", nil)
+	log(mgr.reportingTo.Name(), "working", nil, false)
+	defer log(mgr.reportingTo.Name(), "all done", nil, false)
 	stepFn := mgr.step_Accepting
 	for {
 		if stepFn == nil {
@@ -134,7 +134,7 @@ func (mgr *manager) releaseWrit(name string) Writ {
 	writName := mgr.reportingTo.Name().New(name)
 	// If outside of the accepting states, reject by responding with a doa writ.
 	if !mgr.accepting {
-		log(mgr.reportingTo.Name(), "manager rejected writ requisition", writName)
+		log(mgr.reportingTo.Name(), "manager rejected writ requisition", writName, false)
 		// Send back an unusable monad.
 		return &writ{
 			name:  writName,
@@ -142,11 +142,11 @@ func (mgr *manager) releaseWrit(name string) Writ {
 		}
 	}
 	// Ok, we're doing it: make a new writ to track this upcoming task.
-	log(mgr.reportingTo.Name(), "manager releasing writ", writName)
+	log(mgr.reportingTo.Name(), "manager releasing writ", writName, false)
 	wrt := newWrit(writName)
 	// Assign our final report hook to call back home.
 	wrt.afterward = func() {
-		log(mgr.reportingTo.Name(), "writ turning in", writName)
+		log(mgr.reportingTo.Name(), "writ turning in", writName, false)
 		mgr.ctrlChan_childDone <- wrt
 	}
 	// Register it.
@@ -164,7 +164,7 @@ func (mgr *manager) stopAccepting() {
 func (mgr *manager) reapChild(childDone Writ) {
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
-	log(mgr.reportingTo.Name(), "reaped child", childDone.Name())
+	log(mgr.reportingTo.Name(), "reaped child", childDone.Name(), false)
 	delete(mgr.wards, childDone)
 	mgr.tombstones.Push(childDone)
 }
@@ -172,7 +172,7 @@ func (mgr *manager) reapChild(childDone Writ) {
 func (mgr *manager) cancelAll() {
 	mgr.mu.Lock()
 	defer mgr.mu.Unlock()
-	log(mgr.reportingTo.Name(), "manager told to cancel all!", nil)
+	log(mgr.reportingTo.Name(), "manager told to cancel all!", nil, false)
 	for _, cancelFn := range mgr.wards {
 		cancelFn()
 	}

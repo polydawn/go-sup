@@ -79,7 +79,7 @@ PreDoneLoop:
 		case rcv := <-mgr.tombstones.Next():
 			writ := (rcv).(*writ)
 			if writ.err != nil {
-				msg := fmt.Sprintf("manager autoquitting becomes of error child error: %s", writ.err)
+				msg := fmt.Sprintf("manager autoquitting because of error child error: %s", writ.err)
 				log(mgr.reportingTo.Name(), msg, writ.name, false)
 				devastation = writ.err
 				mgr.ctrlChan_quit.Fire()
